@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+import math
 
 import akshare as ak
 import pandas as pd
@@ -62,21 +63,63 @@ class AkshareDataProvider(DataProvider):
 
     def get_realtime_snapshot(self, symbols: list[str]) -> pd.DataFrame:
         wanted = {normalize_symbol(symbol) for symbol in symbols}
-        spot = ak.stock_zh_a_spot_em()
-        renamed = spot.rename(
-            columns={
-                "代码": "symbol",
-                "名称": "name",
-                "最新价": "last_price",
-                "涨跌幅": "pct_change",
-                "成交量": "volume",
-                "成交额": "turnover",
-                "最高": "high",
-                "最低": "low",
-                "今开": "open",
-                "昨收": "pre_close",
-            }
-        )
-        filtered = renamed[renamed["symbol"].isin(wanted)].copy()
-        filtered["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return filtered.reset_index(drop=True)
+        try:
+            spot = ak.stock_zh_a_spot_em()
+            renamed = spot.rename(
+                columns={
+                    "代码": "symbol",
+                    "名称": "name",
+                    "最新价": "last_price",
+                    "涨跌幅": "pct_change",
+                    "成交量": "volume",
+                    "成交额": "turnover",
+                    "最高": "high",
+                    "最低": "low",
+                    "今开": "open",
+                    "昨收": "pre_close",
+                }
+            )
+            filtered = renamed[renamed["symbol"].isin(wanted)].copy()
+            filtered["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            filtered["data_source"] = "realtime"
+            return filtered.reset_index(drop=True)
+        except Exception:
+            return self._build_history_fallback_snapshot(sorted(wanted))
+
+    def _build_history_fallback_snapshot(self, symbols: list[str]) -> pd.DataFrame:
+        rows: list[dict] = []
+        fallback_end = datetime.now().strftime("%Y%m%d")
+        fallback_start = "20220101"
+
+        for symbol in symbols:
+            history = ak.stock_zh_a_hist(
+                symbol=symbol,
+                period="daily",
+                start_date=fallback_start,
+                end_date=fallback_end,
+                adjust="qfq",
+            )
+            if history.empty:
+                continue
+            latest = history.iloc[-1]
+            last_price = float(latest["收盘"])
+            pre_close = float(history.iloc[-2]["收盘"]) if len(history) > 1 else last_price
+            pct_change = 0.0 if pre_close == 0 else ((last_price / pre_close) - 1.0) * 100
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "name": symbol,
+                    "last_price": last_price,
+                    "pct_change": pct_change if not math.isnan(pct_change) else 0.0,
+                    "volume": int(latest.get("成交量", 0) or 0),
+                    "turnover": float(latest.get("成交额", 0.0) or 0.0),
+                    "high": float(latest.get("最高", last_price) or last_price),
+                    "low": float(latest.get("最低", last_price) or last_price),
+                    "open": float(latest.get("开盘", last_price) or last_price),
+                    "pre_close": pre_close,
+                    "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "data_source": "history_fallback",
+                }
+            )
+
+        return pd.DataFrame(rows)
