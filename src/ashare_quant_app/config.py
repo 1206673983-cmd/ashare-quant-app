@@ -39,11 +39,17 @@ class XtQuantConfig:
 
 
 @dataclass(slots=True)
+class StorageConfig:
+    db_path: str = "data/ashare_quant_app.db"
+
+
+@dataclass(slots=True)
 class AppConfig:
     data: DataConfig = field(default_factory=DataConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     xtquant: XtQuantConfig = field(default_factory=XtQuantConfig)
+    storage: StorageConfig = field(default_factory=StorageConfig)
 
     @classmethod
     def from_file(cls, file_path: str | Path) -> "AppConfig":
@@ -53,6 +59,7 @@ class AppConfig:
             strategy=StrategyConfig(**raw.get("strategy", {})),
             risk=RiskConfig(**raw.get("risk", {})),
             xtquant=XtQuantConfig(**raw.get("xtquant", {})),
+            storage=StorageConfig(**raw.get("storage", {})),
         )
 
     def to_dict(self) -> dict:

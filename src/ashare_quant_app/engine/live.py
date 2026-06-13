@@ -32,27 +32,34 @@ class LiveTradingEngine:
         )
         return self.strategy.generate_signal(symbol, history, position_size)
 
-    def execute_signal(self, decision: SignalDecision) -> OrderResult:
+    def build_order_request(self, decision: SignalDecision) -> OrderRequest | None:
         if decision.signal == Signal.HOLD:
-            return OrderResult(accepted=False, message="当前无交易信号")
+            return None
 
         snapshot = self.data_provider.get_realtime_snapshot([decision.symbol])
         if snapshot.empty:
-            return OrderResult(accepted=False, message="未获取到实时行情，无法下单")
+            return None
 
         row = snapshot.iloc[0]
         last_price = float(row["last_price"])
         volume = self._resolve_trade_volume(decision.symbol, decision.signal, last_price)
         if volume <= 0:
-            return OrderResult(accepted=False, message="下单数量为 0，请检查现金或持仓")
+            return None
 
-        request = OrderRequest(
+        return OrderRequest(
             symbol=decision.symbol,
             side=decision.signal,
             price=last_price,
             volume=volume,
             note=decision.reason,
         )
+
+    def execute_signal(self, decision: SignalDecision) -> OrderResult:
+        request = self.build_order_request(decision)
+        if request is None:
+            if decision.signal == Signal.HOLD:
+                return OrderResult(accepted=False, message="当前无交易信号")
+            return OrderResult(accepted=False, message="下单数量为 0、无实时行情或持仓不足")
 
         if self.config.risk.dry_run:
             return OrderResult(

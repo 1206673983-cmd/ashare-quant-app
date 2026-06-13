@@ -15,6 +15,9 @@ trade_size = 100
 max_position_pct = 0.3
 dry_run = true
 
+[storage]
+db_path = "data/ashare_quant_app.db"
+
 [xtquant]
 enabled = false
 account_id = ""
