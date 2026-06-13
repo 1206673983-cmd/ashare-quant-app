@@ -1,5 +1,6 @@
 [data]
 provider = "akshare"
+realtime_provider = "auto"
 default_symbols = ["600519", "000001", "300750"]
 start_date = "2022-01-01"
 end_date = "2026-01-01"
@@ -14,6 +15,16 @@ trade_size = 100
 [risk]
 max_position_pct = 0.3
 dry_run = true
+stop_loss_pct = 0.05
+take_profit_pct = 0.10
+max_daily_trades = 20
+min_trade_interval_seconds = 60
+
+[auto_refresh]
+enabled = false
+interval_seconds = 15
+auto_execute_signals = false
+sync_broker_state = true
 
 [storage]
 db_path = "data/ashare_quant_app.db"

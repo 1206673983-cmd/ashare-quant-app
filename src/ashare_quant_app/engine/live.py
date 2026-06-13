@@ -3,6 +3,7 @@ from __future__ import annotations
 from ashare_quant_app.broker.base import Broker
 from ashare_quant_app.config import AppConfig
 from ashare_quant_app.data import DataProvider
+from ashare_quant_app.engine.risk import RiskManager
 from ashare_quant_app.models import OrderRequest, OrderResult, Signal, SignalDecision
 from ashare_quant_app.strategies.base import Strategy
 
@@ -19,8 +20,11 @@ class LiveTradingEngine:
         self.data_provider = data_provider
         self.broker = broker
         self.config = config
+        self.risk_manager = RiskManager(config.risk)
+        self.last_block_reason = ""
 
     def evaluate_symbol(self, symbol: str) -> SignalDecision:
+        self.risk_manager.refresh_config(self.config.risk)
         positions = {position.symbol: position for position in self.broker.get_positions()}
         position = positions.get(symbol)
         position_size = position.available_volume if position else 0
@@ -30,20 +34,37 @@ class LiveTradingEngine:
             end_date=self.config.data.end_date,
             adjust=self.config.data.adjust,
         )
+        snapshot = self.data_provider.get_realtime_snapshot([symbol])
+        if not snapshot.empty:
+            forced_exit = self.risk_manager.maybe_force_exit(
+                symbol=symbol,
+                position=position,
+                last_price=float(snapshot.iloc[0]["last_price"]),
+            )
+            if forced_exit is not None:
+                return forced_exit
         return self.strategy.generate_signal(symbol, history, position_size)
 
     def build_order_request(self, decision: SignalDecision) -> OrderRequest | None:
+        self.last_block_reason = ""
         if decision.signal == Signal.HOLD:
+            self.last_block_reason = "当前无交易信号"
             return None
 
         snapshot = self.data_provider.get_realtime_snapshot([decision.symbol])
         if snapshot.empty:
+            self.last_block_reason = "未获取到实时行情，无法下单"
             return None
 
         row = snapshot.iloc[0]
         last_price = float(row["last_price"])
+        risk_message = self.risk_manager.validate_order(decision.symbol, decision.signal)
+        if risk_message:
+            self.last_block_reason = risk_message
+            return None
         volume = self._resolve_trade_volume(decision.symbol, decision.signal, last_price)
         if volume <= 0:
+            self.last_block_reason = "下单数量为 0，请检查现金或持仓"
             return None
 
         return OrderRequest(
@@ -57,16 +78,18 @@ class LiveTradingEngine:
     def execute_signal(self, decision: SignalDecision) -> OrderResult:
         request = self.build_order_request(decision)
         if request is None:
-            if decision.signal == Signal.HOLD:
-                return OrderResult(accepted=False, message="当前无交易信号")
-            return OrderResult(accepted=False, message="下单数量为 0、无实时行情或持仓不足")
+            return OrderResult(accepted=False, message=self.last_block_reason or "交易请求被拦截")
 
         if self.config.risk.dry_run:
             result = self.broker.place_order(request)
             result.message = f"Dry Run: {result.message}"
-            return result
+        else:
+            result = self.broker.place_order(request)
 
-        return self.broker.place_order(request)
+        if result.accepted:
+            self.risk_manager.record_trade(decision.symbol)
+
+        return result
 
     def _resolve_trade_volume(self, symbol: str, side: Signal, last_price: float) -> int:
         positions = {position.symbol: position for position in self.broker.get_positions()}

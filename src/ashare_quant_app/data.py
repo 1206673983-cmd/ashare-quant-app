@@ -29,6 +29,9 @@ class DataProvider(ABC):
 
 
 class AkshareDataProvider(DataProvider):
+    def __init__(self, realtime_provider: str = "auto") -> None:
+        self.realtime_provider = realtime_provider
+
     def get_history(
         self,
         symbol: str,
@@ -63,6 +66,10 @@ class AkshareDataProvider(DataProvider):
 
     def get_realtime_snapshot(self, symbols: list[str]) -> pd.DataFrame:
         wanted = {normalize_symbol(symbol) for symbol in symbols}
+        easyquotation_snapshot = self._try_easyquotation_snapshot(sorted(wanted))
+        if not easyquotation_snapshot.empty:
+            return easyquotation_snapshot
+
         try:
             spot = ak.stock_zh_a_spot_em()
             renamed = spot.rename(
@@ -150,3 +157,45 @@ class AkshareDataProvider(DataProvider):
                 }
             )
         return pd.DataFrame(rows)
+
+    def _try_easyquotation_snapshot(self, symbols: list[str]) -> pd.DataFrame:
+        if self.realtime_provider not in {"auto", "easyquotation"}:
+            return pd.DataFrame()
+        try:
+            import easyquotation
+        except ImportError:
+            return pd.DataFrame()
+
+        for source_name in ("sina", "tencent"):
+            try:
+                quotation = easyquotation.use(source_name)
+                raw = quotation.real(symbols)
+                rows = []
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for symbol in symbols:
+                    item = raw.get(symbol)
+                    if not item:
+                        continue
+                    last_price = float(item.get("now") or item.get("close") or 0.0)
+                    pre_close = float(item.get("close") or last_price or 0.0)
+                    rows.append(
+                        {
+                            "symbol": symbol,
+                            "name": item.get("name", symbol),
+                            "last_price": last_price,
+                            "pct_change": 0.0 if pre_close == 0 else ((last_price / pre_close) - 1.0) * 100,
+                            "volume": int(float(item.get("volume", 0) or 0)),
+                            "turnover": float(item.get("turnover", 0.0) or 0.0),
+                            "high": float(item.get("high", last_price) or last_price),
+                            "low": float(item.get("low", last_price) or last_price),
+                            "open": float(item.get("open", last_price) or last_price),
+                            "pre_close": pre_close,
+                            "updated_at": now,
+                            "data_source": f"easyquotation_{source_name}",
+                        }
+                    )
+                if rows:
+                    return pd.DataFrame(rows)
+            except Exception:
+                continue
+        return pd.DataFrame()

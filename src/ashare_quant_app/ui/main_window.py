@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QGridLayout,
@@ -53,6 +55,8 @@ class MainWindow(QMainWindow):
         self.last_decision: SignalDecision | None = None
         self.last_backtest_result: BacktestResult | None = None
         self.cancel_order_edit = QLineEdit()
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self._handle_auto_refresh)
 
         self._build_ui()
         self.config_path_edit.setText(self.config_path)
@@ -87,6 +91,21 @@ class MainWindow(QMainWindow):
         self.trade_size_spin = QSpinBox()
         self.trade_size_spin.setRange(100, 100000)
         self.trade_size_spin.setSingleStep(100)
+        self.stop_loss_spin = QSpinBox()
+        self.stop_loss_spin.setRange(0, 50)
+        self.take_profit_spin = QSpinBox()
+        self.take_profit_spin.setRange(0, 200)
+        self.max_trades_spin = QSpinBox()
+        self.max_trades_spin.setRange(1, 999)
+        self.min_interval_spin = QSpinBox()
+        self.min_interval_spin.setRange(0, 3600)
+        self.auto_refresh_check = QCheckBox("自动刷新")
+        self.auto_execute_check = QCheckBox("自动执行")
+        self.auto_refresh_interval_spin = QSpinBox()
+        self.auto_refresh_interval_spin.setRange(5, 3600)
+        self.auto_refresh_check.stateChanged.connect(self._on_auto_refresh_settings_changed)
+        self.auto_execute_check.stateChanged.connect(self._on_auto_refresh_settings_changed)
+        self.auto_refresh_interval_spin.valueChanged.connect(self._on_auto_refresh_settings_changed)
 
         backtest_btn = QPushButton("运行回测")
         signal_btn = QPushButton("评估信号")
@@ -118,16 +137,29 @@ class MainWindow(QMainWindow):
         grid.addWidget(QLabel("每次交易股数"), 1, 6)
         grid.addWidget(self.trade_size_spin, 1, 7)
 
-        grid.addWidget(QLabel("撤单订单号"), 2, 0)
-        grid.addWidget(self.cancel_order_edit, 2, 1, 1, 2)
-        grid.addWidget(cancel_btn, 2, 3)
+        grid.addWidget(QLabel("止损%"), 2, 0)
+        grid.addWidget(self.stop_loss_spin, 2, 1)
+        grid.addWidget(QLabel("止盈%"), 2, 2)
+        grid.addWidget(self.take_profit_spin, 2, 3)
+        grid.addWidget(QLabel("日内上限"), 2, 4)
+        grid.addWidget(self.max_trades_spin, 2, 5)
+        grid.addWidget(QLabel("最小间隔秒"), 2, 6)
+        grid.addWidget(self.min_interval_spin, 2, 7)
 
-        grid.addWidget(backtest_btn, 3, 1)
-        grid.addWidget(signal_btn, 3, 2)
-        grid.addWidget(execute_btn, 3, 3)
-        grid.addWidget(quote_btn, 3, 4)
-        grid.addWidget(position_btn, 3, 5)
-        grid.addWidget(refresh_record_btn, 3, 6)
+        grid.addWidget(self.auto_refresh_check, 3, 0)
+        grid.addWidget(self.auto_execute_check, 3, 1)
+        grid.addWidget(QLabel("刷新秒数"), 3, 2)
+        grid.addWidget(self.auto_refresh_interval_spin, 3, 3)
+        grid.addWidget(QLabel("撤单订单号"), 3, 4)
+        grid.addWidget(self.cancel_order_edit, 3, 5, 1, 2)
+        grid.addWidget(cancel_btn, 3, 7)
+
+        grid.addWidget(backtest_btn, 4, 1)
+        grid.addWidget(signal_btn, 4, 2)
+        grid.addWidget(execute_btn, 4, 3)
+        grid.addWidget(quote_btn, 4, 4)
+        grid.addWidget(position_btn, 4, 5)
+        grid.addWidget(refresh_record_btn, 4, 6)
         return box
 
     def _build_status_panel(self) -> QGroupBox:
@@ -139,12 +171,14 @@ class MainWindow(QMainWindow):
         self.storage_label = QLabel("数据库: -")
         self.account_label = QLabel("账户: -")
         self.signal_label = QLabel("最近信号: -")
+        self.refresh_label = QLabel("刷新: 手动")
 
         row.addWidget(self.mode_label)
         row.addWidget(self.strategy_label)
         row.addWidget(self.storage_label)
         row.addWidget(self.account_label)
         row.addWidget(self.signal_label)
+        row.addWidget(self.refresh_label)
         return box
 
     def _build_workspace(self) -> QWidget:
@@ -152,7 +186,7 @@ class MainWindow(QMainWindow):
 
         left_box = QGroupBox("行情与持仓")
         left_layout = QVBoxLayout(left_box)
-        self.quote_table = self._new_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "更新时间"])
+        self.quote_table = self._new_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "更新时间", "来源"])
         self.position_table = self._new_table(["代码", "数量", "可用", "成本价", "最新价"])
         left_layout.addWidget(QLabel("实时行情"))
         left_layout.addWidget(self.quote_table)
@@ -235,18 +269,27 @@ class MainWindow(QMainWindow):
             self.fast_window_spin.setValue(self.config.strategy.fast_window)
             self.slow_window_spin.setValue(self.config.strategy.slow_window)
             self.trade_size_spin.setValue(self.config.strategy.trade_size)
+            self.stop_loss_spin.setValue(int(self.config.risk.stop_loss_pct * 100))
+            self.take_profit_spin.setValue(int(self.config.risk.take_profit_pct * 100))
+            self.max_trades_spin.setValue(self.config.risk.max_daily_trades)
+            self.min_interval_spin.setValue(self.config.risk.min_trade_interval_seconds)
+            self.auto_refresh_check.setChecked(self.config.auto_refresh.enabled)
+            self.auto_execute_check.setChecked(self.config.auto_refresh.auto_execute_signals)
+            self.auto_refresh_interval_spin.setValue(self.config.auto_refresh.interval_seconds)
 
             self._refresh_runtime(reset_broker=True)
             self._refresh_status_labels()
             self.sync_broker_state(source="load_config")
             self.refresh_market()
             self.refresh_records()
+            self._configure_auto_refresh()
             self.log(f"加载配置成功: {self.config_path}")
         except Exception as exc:  # pragma: no cover - UI path
             self._show_error("加载配置失败", str(exc))
 
     def _refresh_runtime(self, reset_broker: bool = False) -> None:
         self._apply_strategy_controls_to_config()
+        self.data_provider = AkshareDataProvider(realtime_provider=self.config.data.realtime_provider)
         strategy = MovingAverageCrossStrategy(
             fast_window=self.config.strategy.fast_window,
             slow_window=self.config.strategy.slow_window,
@@ -274,6 +317,13 @@ class MainWindow(QMainWindow):
         self.config.strategy.fast_window = fast_window
         self.config.strategy.slow_window = slow_window
         self.config.strategy.trade_size = self.trade_size_spin.value()
+        self.config.risk.stop_loss_pct = self.stop_loss_spin.value() / 100
+        self.config.risk.take_profit_pct = self.take_profit_spin.value() / 100
+        self.config.risk.max_daily_trades = self.max_trades_spin.value()
+        self.config.risk.min_trade_interval_seconds = self.min_interval_spin.value()
+        self.config.auto_refresh.enabled = self.auto_refresh_check.isChecked()
+        self.config.auto_refresh.auto_execute_signals = self.auto_execute_check.isChecked()
+        self.config.auto_refresh.interval_seconds = self.auto_refresh_interval_spin.value()
 
     def _refresh_status_labels(self) -> None:
         mode = "QMT 实盘" if self.config.xtquant.enabled and not self.config.risk.dry_run else "本地 Dry Run"
@@ -283,6 +333,12 @@ class MainWindow(QMainWindow):
             f"每次 {self.config.strategy.trade_size} 股"
         )
         self.storage_label.setText(f"数据库: {self.storage.db_path}")
+        refresh_text = (
+            f"刷新: 每 {self.config.auto_refresh.interval_seconds}s"
+            if self.config.auto_refresh.enabled
+            else "刷新: 手动"
+        )
+        self.refresh_label.setText(refresh_text)
 
     def run_backtest(self) -> None:
         try:
@@ -413,6 +469,12 @@ class MainWindow(QMainWindow):
             if not symbols:
                 return
             snapshot = self.data_provider.get_realtime_snapshot(symbols)
+            price_map = {
+                str(row["symbol"]): float(row["last_price"])
+                for _, row in snapshot.iterrows()
+                if "symbol" in row and "last_price" in row
+            }
+            self.broker.update_market_prices(price_map)
             self._populate_frame_table(
                 self.quote_table,
                 snapshot,
@@ -423,9 +485,12 @@ class MainWindow(QMainWindow):
                     ("pct_change", lambda value: f"{float(value):.2f}%"),
                     ("volume", lambda value: str(int(value))),
                     ("updated_at", lambda value: value),
+                    ("data_source", lambda value: value),
                 ],
             )
-            self.log(f"刷新行情成功，共 {len(snapshot)} 条")
+            source = snapshot.iloc[0]["data_source"] if not snapshot.empty and "data_source" in snapshot.columns else "unknown"
+            self.log(f"刷新行情成功，共 {len(snapshot)} 条，来源 {source}")
+            self.refresh_positions()
         except Exception as exc:  # pragma: no cover - UI path
             self._show_error("刷新行情失败", str(exc))
 
@@ -456,6 +521,35 @@ class MainWindow(QMainWindow):
         self.storage.save_trades(trades)
         self.storage.save_events(events)
         self.refresh_positions()
+
+    def _configure_auto_refresh(self) -> None:
+        if self.config.auto_refresh.enabled:
+            self.refresh_timer.start(self.config.auto_refresh.interval_seconds * 1000)
+        else:
+            self.refresh_timer.stop()
+
+    def _on_auto_refresh_settings_changed(self) -> None:
+        self.config.auto_refresh.enabled = self.auto_refresh_check.isChecked()
+        self.config.auto_refresh.auto_execute_signals = self.auto_execute_check.isChecked()
+        self.config.auto_refresh.interval_seconds = self.auto_refresh_interval_spin.value()
+        self._refresh_status_labels()
+        self._configure_auto_refresh()
+
+    def _handle_auto_refresh(self) -> None:
+        try:
+            self._refresh_runtime()
+            self._refresh_status_labels()
+            self.refresh_market()
+            if self.config.auto_refresh.sync_broker_state:
+                self.sync_broker_state(source="auto_refresh")
+            self.refresh_records()
+            if self.config.auto_refresh.auto_execute_signals:
+                symbol = self._current_symbol()
+                decision = self._evaluate_current_symbol(save_signal=True)
+                if decision.symbol == symbol and decision.signal.value != "hold":
+                    self.execute_signal()
+        except Exception as exc:  # pragma: no cover - UI path
+            self.log(f"自动刷新异常: {exc}")
 
     def refresh_records(self) -> None:
         self._populate_frame_table(

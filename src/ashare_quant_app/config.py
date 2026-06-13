@@ -8,6 +8,7 @@ import tomllib
 @dataclass(slots=True)
 class DataConfig:
     provider: str = "akshare"
+    realtime_provider: str = "auto"
     default_symbols: list[str] = field(default_factory=lambda: ["600519", "000001"])
     start_date: str = "2022-01-01"
     end_date: str = "2026-01-01"
@@ -26,6 +27,18 @@ class StrategyConfig:
 class RiskConfig:
     max_position_pct: float = 0.3
     dry_run: bool = True
+    stop_loss_pct: float = 0.05
+    take_profit_pct: float = 0.1
+    max_daily_trades: int = 20
+    min_trade_interval_seconds: int = 60
+
+
+@dataclass(slots=True)
+class AutoRefreshConfig:
+    enabled: bool = False
+    interval_seconds: int = 15
+    auto_execute_signals: bool = False
+    sync_broker_state: bool = True
 
 
 @dataclass(slots=True)
@@ -48,6 +61,7 @@ class AppConfig:
     data: DataConfig = field(default_factory=DataConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
+    auto_refresh: AutoRefreshConfig = field(default_factory=AutoRefreshConfig)
     xtquant: XtQuantConfig = field(default_factory=XtQuantConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
 
@@ -58,6 +72,7 @@ class AppConfig:
             data=DataConfig(**raw.get("data", {})),
             strategy=StrategyConfig(**raw.get("strategy", {})),
             risk=RiskConfig(**raw.get("risk", {})),
+            auto_refresh=AutoRefreshConfig(**raw.get("auto_refresh", {})),
             xtquant=XtQuantConfig(**raw.get("xtquant", {})),
             storage=StorageConfig(**raw.get("storage", {})),
         )

@@ -48,6 +48,12 @@ class SimulatedBroker(Broker):
     def get_events(self) -> list[BrokerEvent]:
         return sorted(self.events, key=lambda item: item.created_at, reverse=True)
 
+    def update_market_prices(self, prices: dict[str, float]) -> None:
+        for symbol, last_price in prices.items():
+            position = self.positions.get(symbol)
+            if position is not None:
+                position.last_price = float(last_price)
+
     def place_order(self, request: OrderRequest) -> OrderResult:
         if not self.connected:
             return OrderResult(accepted=False, message="模拟券商未连接", status=OrderStatus.REJECTED)

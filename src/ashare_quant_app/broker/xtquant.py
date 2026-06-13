@@ -140,6 +140,10 @@ class XtQuantBroker(Broker):
     def get_events(self) -> list[BrokerEvent]:
         return sorted(self._events, key=lambda item: item.created_at, reverse=True)
 
+    def update_market_prices(self, prices: dict[str, float]) -> None:
+        # QMT account assets/positions are queried from the client; no local state update is needed here.
+        return None
+
     def place_order(self, request: OrderRequest) -> OrderResult:
         self._ensure_connected()
 

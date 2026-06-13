@@ -45,3 +45,7 @@ class Broker(ABC):
     @abstractmethod
     def get_events(self) -> list[BrokerEvent]:
         raise NotImplementedError
+
+    @abstractmethod
+    def update_market_prices(self, prices: dict[str, float]) -> None:
+        raise NotImplementedError
