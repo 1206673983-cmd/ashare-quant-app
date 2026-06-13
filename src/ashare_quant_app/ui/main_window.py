@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QFrame,
     QFileDialog,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QPlainTextEdit,
+    QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QSplitter,
     QTabWidget,
@@ -42,7 +44,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config_path: str | None = None) -> None:
         super().__init__()
         self.setWindowTitle("A股量化交易终端")
-        self.resize(1480, 980)
+        self.resize(1600, 1020)
 
         default_config = config_path or str(Path.cwd() / "config.example.toml")
         self.config_path = default_config
@@ -58,24 +60,164 @@ class MainWindow(QMainWindow):
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self._handle_auto_refresh)
 
+        self._apply_theme()
         self._build_ui()
         self.config_path_edit.setText(self.config_path)
         self.load_config()
 
+    def _apply_theme(self) -> None:
+        self.setStyleSheet(
+            """
+            QMainWindow, QWidget {
+                background: #0b1220;
+                color: #dbe4f0;
+                font-size: 13px;
+            }
+            QFrame#Card {
+                background: #111a2e;
+                border: 1px solid #1d2942;
+                border-radius: 14px;
+            }
+            QFrame#StatusCard {
+                background: #13203a;
+                border: 1px solid #223252;
+                border-radius: 12px;
+            }
+            QLabel#SectionTitle {
+                font-size: 15px;
+                font-weight: 700;
+                color: #f3f7fb;
+            }
+            QLabel#SectionHint {
+                color: #8ea2c0;
+                font-size: 12px;
+            }
+            QLabel#StatusValue {
+                font-size: 13px;
+                font-weight: 600;
+                color: #ffffff;
+            }
+            QLabel#StatusCaption {
+                color: #87a0c0;
+                font-size: 11px;
+            }
+            QGroupBox {
+                border: 1px solid #1d2942;
+                border-radius: 12px;
+                margin-top: 14px;
+                padding-top: 10px;
+                background: #111a2e;
+                font-weight: 600;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #cfe0f5;
+            }
+            QPushButton {
+                background: #1d4ed8;
+                border: 1px solid #2d63ee;
+                border-radius: 8px;
+                padding: 8px 14px;
+                color: white;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: #2b5fe7;
+            }
+            QPushButton:pressed {
+                background: #1845c0;
+            }
+            QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+                background: #0d1729;
+                border: 1px solid #233452;
+                border-radius: 8px;
+                padding: 6px 8px;
+                color: #e9f0f8;
+            }
+            QTableWidget, QTabWidget::pane {
+                background: #0d1729;
+                border: 1px solid #233452;
+                border-radius: 10px;
+                gridline-color: #1b2942;
+            }
+            QHeaderView::section {
+                background: #13203a;
+                color: #bcd0ea;
+                border: none;
+                border-bottom: 1px solid #233452;
+                padding: 8px;
+                font-weight: 600;
+            }
+            QTableWidget {
+                selection-background-color: #1f4fd1;
+                selection-color: white;
+            }
+            QTabBar::tab {
+                background: #111a2e;
+                color: #9eb2cf;
+                padding: 8px 14px;
+                margin-right: 4px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+            }
+            QTabBar::tab:selected {
+                background: #1b2a47;
+                color: #ffffff;
+            }
+            QCheckBox {
+                spacing: 6px;
+            }
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            """
+        )
+
     def _build_ui(self) -> None:
         root = QWidget()
         layout = QVBoxLayout(root)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
-        layout.addWidget(self._build_control_panel())
+        layout.addWidget(self._build_header_panel())
         layout.addWidget(self._build_status_panel())
-        layout.addWidget(self._build_workspace())
-        layout.addWidget(self._build_records_panel())
+        layout.addWidget(self._build_workspace(), 1)
+        layout.addWidget(self._build_records_panel(), 1)
 
         self.setCentralWidget(root)
 
-    def _build_control_panel(self) -> QGroupBox:
-        box = QGroupBox("控制台")
-        grid = QGridLayout(box)
+    def _build_header_panel(self) -> QFrame:
+        card = self._make_card("StatusCard")
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+
+        title_layout = QVBoxLayout()
+        title = QLabel("A股量化交易工作台")
+        title.setObjectName("SectionTitle")
+        hint = QLabel("参考主流量化终端布局，聚合策略、行情、风控、图表和交易记录")
+        hint.setObjectName("SectionHint")
+        title_layout.addWidget(title)
+        title_layout.addWidget(hint)
+
+        layout.addLayout(title_layout, 1)
+        layout.addWidget(self._make_status_badge("运行模式", "本地模拟 / QMT"), 0)
+        layout.addWidget(self._make_status_badge("数据链路", "实时 / 回退"), 0)
+        return card
+
+    def _build_control_panel(self) -> QFrame:
+        card = self._make_card()
+        outer = QVBoxLayout(card)
+        outer.setContentsMargins(16, 16, 16, 16)
+        outer.setSpacing(12)
+
+        outer.addWidget(self._make_section_header("策略与风控", "调整参数后可直接刷新运行时配置"))
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(10)
 
         self.config_path_edit = QLineEdit()
         browse_btn = QPushButton("选择配置")
@@ -124,9 +266,9 @@ class MainWindow(QMainWindow):
         refresh_record_btn.clicked.connect(self.refresh_records)
 
         grid.addWidget(QLabel("配置文件"), 0, 0)
-        grid.addWidget(self.config_path_edit, 0, 1, 1, 5)
-        grid.addWidget(browse_btn, 0, 6)
-        grid.addWidget(load_btn, 0, 7)
+        grid.addWidget(self.config_path_edit, 0, 1, 1, 3)
+        grid.addWidget(browse_btn, 0, 4)
+        grid.addWidget(load_btn, 0, 5)
 
         grid.addWidget(QLabel("交易标的"), 1, 0)
         grid.addWidget(self.symbol_combo, 1, 1)
@@ -134,80 +276,105 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.fast_window_spin, 1, 3)
         grid.addWidget(QLabel("慢线"), 1, 4)
         grid.addWidget(self.slow_window_spin, 1, 5)
-        grid.addWidget(QLabel("每次交易股数"), 1, 6)
-        grid.addWidget(self.trade_size_spin, 1, 7)
+        grid.addWidget(QLabel("每次股数"), 2, 0)
+        grid.addWidget(self.trade_size_spin, 2, 1)
 
-        grid.addWidget(QLabel("止损%"), 2, 0)
-        grid.addWidget(self.stop_loss_spin, 2, 1)
-        grid.addWidget(QLabel("止盈%"), 2, 2)
-        grid.addWidget(self.take_profit_spin, 2, 3)
-        grid.addWidget(QLabel("日内上限"), 2, 4)
-        grid.addWidget(self.max_trades_spin, 2, 5)
-        grid.addWidget(QLabel("最小间隔秒"), 2, 6)
-        grid.addWidget(self.min_interval_spin, 2, 7)
+        grid.addWidget(QLabel("止损%"), 2, 2)
+        grid.addWidget(self.stop_loss_spin, 2, 3)
+        grid.addWidget(QLabel("止盈%"), 2, 4)
+        grid.addWidget(self.take_profit_spin, 2, 5)
+        grid.addWidget(QLabel("日内上限"), 3, 0)
+        grid.addWidget(self.max_trades_spin, 3, 1)
+        grid.addWidget(QLabel("最小间隔秒"), 3, 2)
+        grid.addWidget(self.min_interval_spin, 3, 3)
 
-        grid.addWidget(self.auto_refresh_check, 3, 0)
-        grid.addWidget(self.auto_execute_check, 3, 1)
-        grid.addWidget(QLabel("刷新秒数"), 3, 2)
-        grid.addWidget(self.auto_refresh_interval_spin, 3, 3)
-        grid.addWidget(QLabel("撤单订单号"), 3, 4)
-        grid.addWidget(self.cancel_order_edit, 3, 5, 1, 2)
-        grid.addWidget(cancel_btn, 3, 7)
+        grid.addWidget(self.auto_refresh_check, 4, 0)
+        grid.addWidget(self.auto_execute_check, 4, 1)
+        grid.addWidget(QLabel("刷新秒数"), 4, 2)
+        grid.addWidget(self.auto_refresh_interval_spin, 4, 3)
+        grid.addWidget(QLabel("撤单订单号"), 4, 4)
+        grid.addWidget(self.cancel_order_edit, 4, 5)
+        grid.addWidget(cancel_btn, 4, 6)
 
-        grid.addWidget(backtest_btn, 4, 1)
-        grid.addWidget(signal_btn, 4, 2)
-        grid.addWidget(execute_btn, 4, 3)
-        grid.addWidget(quote_btn, 4, 4)
-        grid.addWidget(position_btn, 4, 5)
-        grid.addWidget(refresh_record_btn, 4, 6)
-        return box
+        action_row = QHBoxLayout()
+        action_row.setSpacing(8)
+        action_row.addWidget(backtest_btn)
+        action_row.addWidget(signal_btn)
+        action_row.addWidget(execute_btn)
+        action_row.addWidget(quote_btn)
+        action_row.addWidget(position_btn)
+        action_row.addWidget(refresh_record_btn)
+        action_row.addStretch(1)
 
-    def _build_status_panel(self) -> QGroupBox:
-        box = QGroupBox("运行状态")
-        row = QHBoxLayout(box)
+        outer.addLayout(grid)
+        outer.addLayout(action_row)
+        return card
 
-        self.mode_label = QLabel("模式: -")
-        self.strategy_label = QLabel("策略: -")
-        self.storage_label = QLabel("数据库: -")
-        self.account_label = QLabel("账户: -")
-        self.signal_label = QLabel("最近信号: -")
-        self.refresh_label = QLabel("刷新: 手动")
+    def _build_status_panel(self) -> QWidget:
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(12)
 
-        row.addWidget(self.mode_label)
-        row.addWidget(self.strategy_label)
-        row.addWidget(self.storage_label)
-        row.addWidget(self.account_label)
-        row.addWidget(self.signal_label)
-        row.addWidget(self.refresh_label)
-        return box
+        self.mode_label = QLabel("-")
+        self.strategy_label = QLabel("-")
+        self.storage_label = QLabel("-")
+        self.account_label = QLabel("-")
+        self.signal_label = QLabel("-")
+        self.refresh_label = QLabel("手动")
+
+        row.addWidget(self._make_info_card("运行模式", self.mode_label))
+        row.addWidget(self._make_info_card("当前策略", self.strategy_label))
+        row.addWidget(self._make_info_card("账户资产", self.account_label))
+        row.addWidget(self._make_info_card("最近信号", self.signal_label))
+        row.addWidget(self._make_info_card("刷新状态", self.refresh_label))
+        row.addWidget(self._make_info_card("数据库", self.storage_label))
+        return container
 
     def _build_workspace(self) -> QWidget:
         splitter = QSplitter()
+        splitter.setChildrenCollapsible(False)
 
-        left_box = QGroupBox("行情与持仓")
-        left_layout = QVBoxLayout(left_box)
-        self.quote_table = self._new_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "更新时间", "来源"])
-        self.position_table = self._new_table(["代码", "数量", "可用", "成本价", "最新价"])
-        left_layout.addWidget(QLabel("实时行情"))
-        left_layout.addWidget(self.quote_table)
-        left_layout.addWidget(QLabel("当前持仓"))
-        left_layout.addWidget(self.position_table)
+        sidebar_scroll = QScrollArea()
+        sidebar_scroll.setWidgetResizable(True)
+        sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sidebar_scroll.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        sidebar_scroll.setWidget(self._build_control_panel())
 
-        right_box = QGroupBox("图表分析")
-        right_layout = QVBoxLayout(right_box)
+        center_card = self._make_card()
+        center_layout = QVBoxLayout(center_card)
+        center_layout.setContentsMargins(16, 16, 16, 16)
+        center_layout.setSpacing(10)
+        center_layout.addWidget(self._make_section_header("图表分析", "查看价格结构、均线形态和权益曲线"))
         self.price_chart = PriceChartView()
         self.equity_chart = EquityChartView()
-        right_layout.addWidget(self.price_chart)
-        right_layout.addWidget(self.equity_chart)
+        center_layout.addWidget(self.price_chart, 1)
+        center_layout.addWidget(self.equity_chart, 1)
 
-        splitter.addWidget(left_box)
-        splitter.addWidget(right_box)
-        splitter.setSizes([650, 800])
+        right_card = self._make_card()
+        right_layout = QVBoxLayout(right_card)
+        right_layout.setContentsMargins(16, 16, 16, 16)
+        right_layout.setSpacing(10)
+        right_layout.addWidget(self._make_section_header("市场监控", "实时行情、持仓与交易监视"))
+        right_layout.addWidget(QLabel("实时行情"))
+        self.quote_table = self._new_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "更新时间", "来源"])
+        right_layout.addWidget(self.quote_table, 3)
+        right_layout.addWidget(QLabel("当前持仓"))
+        self.position_table = self._new_table(["代码", "数量", "可用", "成本价", "最新价"])
+        right_layout.addWidget(self.position_table, 2)
+
+        splitter.addWidget(sidebar_scroll)
+        splitter.addWidget(center_card)
+        splitter.addWidget(right_card)
+        splitter.setSizes([420, 700, 480])
         return splitter
 
-    def _build_records_panel(self) -> QGroupBox:
-        box = QGroupBox("记录中心")
-        layout = QVBoxLayout(box)
+    def _build_records_panel(self) -> QFrame:
+        card = self._make_card()
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.addWidget(self._make_section_header("交易记录中心", "集中查看回测、委托、成交、快照与事件"))
 
         self.record_tabs = QTabWidget()
         self.backtest_table = self._new_table(
@@ -242,7 +409,7 @@ class MainWindow(QMainWindow):
         self.record_tabs.addTab(self.event_table, "事件日志")
         self.record_tabs.addTab(self.log_view, "运行日志")
         layout.addWidget(self.record_tabs)
-        return box
+        return card
 
     def _new_table(self, headers: list[str]) -> QTableWidget:
         table = QTableWidget(0, len(headers))
@@ -250,7 +417,44 @@ class MainWindow(QMainWindow):
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.verticalHeader().setVisible(False)
+        table.setAlternatingRowColors(True)
         return table
+
+    def _make_card(self, object_name: str = "Card") -> QFrame:
+        frame = QFrame()
+        frame.setObjectName(object_name)
+        return frame
+
+    def _make_section_header(self, title: str, hint: str) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        title_label = QLabel(title)
+        title_label.setObjectName("SectionTitle")
+        hint_label = QLabel(hint)
+        hint_label.setObjectName("SectionHint")
+        layout.addWidget(title_label)
+        layout.addWidget(hint_label)
+        return widget
+
+    def _make_info_card(self, caption: str, value_label: QLabel) -> QFrame:
+        frame = self._make_card("StatusCard")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(4)
+        caption_label = QLabel(caption)
+        caption_label.setObjectName("StatusCaption")
+        value_label.setObjectName("StatusValue")
+        value_label.setWordWrap(True)
+        layout.addWidget(caption_label)
+        layout.addWidget(value_label)
+        return frame
+
+    def _make_status_badge(self, caption: str, value: str) -> QFrame:
+        label = QLabel(value)
+        return self._make_info_card(caption, label)
 
     def _choose_config(self) -> None:
         chosen, _ = QFileDialog.getOpenFileName(self, "选择配置文件", self.config_path, "TOML Files (*.toml)")
