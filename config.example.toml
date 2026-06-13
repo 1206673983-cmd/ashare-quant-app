@@ -1,0 +1,24 @@
+[data]
+provider = "akshare"
+default_symbols = ["600519", "000001", "300750"]
+start_date = "2022-01-01"
+end_date = "2026-01-01"
+adjust = "qfq"
+
+[strategy]
+name = "moving_average_cross"
+fast_window = 5
+slow_window = 20
+trade_size = 100
+
+[risk]
+max_position_pct = 0.3
+dry_run = true
+
+[xtquant]
+enabled = false
+account_id = ""
+account_type = "stock"
+client_path = "C:/国金QMT交易端/bin.x64/XTItClient.exe"
+mini_qmt_dir = "C:/国金QMT交易端/userdata_mini"
+session_id = 1001
