@@ -11,6 +11,20 @@ class Signal(str, Enum):
     SELL = "sell"
 
 
+class OrderStatus(str, Enum):
+    SUBMITTED = "submitted"
+    FILLED = "filled"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+    PARTIAL = "partial"
+
+
+class EventLevel(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
 @dataclass(slots=True)
 class OrderRequest:
     symbol: str
@@ -25,6 +39,41 @@ class OrderResult:
     accepted: bool
     message: str
     order_id: str | None = None
+    status: OrderStatus | None = None
+    trade_id: str | None = None
+
+
+@dataclass(slots=True)
+class BrokerOrder:
+    order_id: str
+    symbol: str
+    side: Signal
+    price: float
+    volume: int
+    filled_volume: int
+    status: OrderStatus
+    message: str = ""
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass(slots=True)
+class TradeFill:
+    trade_id: str
+    order_id: str
+    symbol: str
+    side: Signal
+    price: float
+    volume: int
+    created_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass(slots=True)
+class BrokerEvent:
+    level: EventLevel
+    category: str
+    message: str
+    created_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass(slots=True)
@@ -45,6 +94,7 @@ class AccountSnapshot:
     cash: float
     equity: float
     market_value: float
+    created_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass(slots=True)

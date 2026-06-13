@@ -62,11 +62,9 @@ class LiveTradingEngine:
             return OrderResult(accepted=False, message="下单数量为 0、无实时行情或持仓不足")
 
         if self.config.risk.dry_run:
-            return OrderResult(
-                accepted=True,
-                message=f"Dry Run: {request.side.value} {request.symbol} {request.volume} @ {request.price:.2f}",
-                order_id="DRY-RUN",
-            )
+            result = self.broker.place_order(request)
+            result.message = f"Dry Run: {result.message}"
+            return result
 
         return self.broker.place_order(request)
 

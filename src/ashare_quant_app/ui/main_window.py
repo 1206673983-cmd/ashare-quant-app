@@ -31,7 +31,7 @@ from ashare_quant_app.config import AppConfig
 from ashare_quant_app.data import AkshareDataProvider
 from ashare_quant_app.engine import BacktestEngine, BacktestResult, LiveTradingEngine
 from ashare_quant_app.models import Position, SignalDecision
-from ashare_quant_app.storage import BacktestRecord, OrderRecord, Storage
+from ashare_quant_app.storage import AccountSnapshotRecord, BacktestRecord, OrderRecord, Storage
 from ashare_quant_app.strategies import MovingAverageCrossStrategy
 from ashare_quant_app.ui.charts import EquityChartView, PriceChartView
 
@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self.live_engine: LiveTradingEngine | None = None
         self.last_decision: SignalDecision | None = None
         self.last_backtest_result: BacktestResult | None = None
+        self.cancel_order_edit = QLineEdit()
 
         self._build_ui()
         self.config_path_edit.setText(self.config_path)
@@ -90,6 +91,7 @@ class MainWindow(QMainWindow):
         backtest_btn = QPushButton("运行回测")
         signal_btn = QPushButton("评估信号")
         execute_btn = QPushButton("执行信号")
+        cancel_btn = QPushButton("撤销委托")
         quote_btn = QPushButton("刷新行情")
         position_btn = QPushButton("刷新持仓")
         refresh_record_btn = QPushButton("刷新记录")
@@ -97,6 +99,7 @@ class MainWindow(QMainWindow):
         backtest_btn.clicked.connect(self.run_backtest)
         signal_btn.clicked.connect(self.evaluate_signal)
         execute_btn.clicked.connect(self.execute_signal)
+        cancel_btn.clicked.connect(self.cancel_order)
         quote_btn.clicked.connect(self.refresh_market)
         position_btn.clicked.connect(self.refresh_positions)
         refresh_record_btn.clicked.connect(self.refresh_records)
@@ -115,12 +118,16 @@ class MainWindow(QMainWindow):
         grid.addWidget(QLabel("每次交易股数"), 1, 6)
         grid.addWidget(self.trade_size_spin, 1, 7)
 
-        grid.addWidget(backtest_btn, 2, 1)
-        grid.addWidget(signal_btn, 2, 2)
-        grid.addWidget(execute_btn, 2, 3)
-        grid.addWidget(quote_btn, 2, 4)
-        grid.addWidget(position_btn, 2, 5)
-        grid.addWidget(refresh_record_btn, 2, 6)
+        grid.addWidget(QLabel("撤单订单号"), 2, 0)
+        grid.addWidget(self.cancel_order_edit, 2, 1, 1, 2)
+        grid.addWidget(cancel_btn, 2, 3)
+
+        grid.addWidget(backtest_btn, 3, 1)
+        grid.addWidget(signal_btn, 3, 2)
+        grid.addWidget(execute_btn, 3, 3)
+        grid.addWidget(quote_btn, 3, 4)
+        grid.addWidget(position_btn, 3, 5)
+        grid.addWidget(refresh_record_btn, 3, 6)
         return box
 
     def _build_status_panel(self) -> QGroupBox:
@@ -173,16 +180,32 @@ class MainWindow(QMainWindow):
             ["时间", "代码", "策略", "快线", "慢线", "股数", "总收益", "年化", "回撤", "夏普", "交易数"]
         )
         self.order_table = self._new_table(
-            ["时间", "代码", "方向", "价格", "股数", "模式", "成功", "订单号", "结果"]
+            ["时间", "代码", "方向", "价格", "股数", "模式", "成功", "订单号", "状态", "成交号", "结果"]
         )
         self.signal_table = self._new_table(["时间", "代码", "信号", "参考价", "原因"])
+        self.broker_order_table = self._new_table(
+            ["抓取时间", "订单号", "代码", "方向", "价格", "委托量", "成交量", "状态", "说明"]
+        )
+        self.trade_table = self._new_table(
+            ["抓取时间", "成交号", "订单号", "代码", "方向", "价格", "数量", "成交时间"]
+        )
+        self.account_snapshot_table = self._new_table(["时间", "来源", "现金", "总资产", "持仓市值"])
+        self.position_snapshot_table = self._new_table(
+            ["时间", "来源", "代码", "数量", "可用", "成本价", "最新价"]
+        )
+        self.event_table = self._new_table(["时间", "级别", "类别", "消息"])
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
 
         self.record_tabs.addTab(self.backtest_table, "回测记录")
         self.record_tabs.addTab(self.order_table, "订单记录")
+        self.record_tabs.addTab(self.broker_order_table, "委托中心")
+        self.record_tabs.addTab(self.trade_table, "成交记录")
         self.record_tabs.addTab(self.signal_table, "信号记录")
+        self.record_tabs.addTab(self.account_snapshot_table, "账户快照")
+        self.record_tabs.addTab(self.position_snapshot_table, "持仓快照")
+        self.record_tabs.addTab(self.event_table, "事件日志")
         self.record_tabs.addTab(self.log_view, "运行日志")
         layout.addWidget(self.record_tabs)
         return box
@@ -215,7 +238,7 @@ class MainWindow(QMainWindow):
 
             self._refresh_runtime(reset_broker=True)
             self._refresh_status_labels()
-            self.refresh_positions()
+            self.sync_broker_state(source="load_config")
             self.refresh_market()
             self.refresh_records()
             self.log(f"加载配置成功: {self.config_path}")
@@ -365,10 +388,24 @@ class MainWindow(QMainWindow):
                 f"最近信号: {decision.signal.value.upper()} @ {decision.reference_price:.2f} | {result.message}"
             )
             self.log(f"执行结果 | {decision.symbol} | {result.message}")
-            self.refresh_positions()
+            if result.order_id:
+                self.cancel_order_edit.setText(result.order_id)
+            self.sync_broker_state(source="execute_signal")
             self.refresh_records()
         except Exception as exc:  # pragma: no cover - UI path
             self._show_error("执行失败", str(exc))
+
+    def cancel_order(self) -> None:
+        try:
+            order_id = self.cancel_order_edit.text().strip()
+            if not order_id:
+                raise RuntimeError("请先输入要撤销的订单号")
+            result = self.broker.cancel_order(order_id)
+            self.log(f"撤单结果 | {order_id} | {result.message}")
+            self.sync_broker_state(source="cancel_order")
+            self.refresh_records()
+        except Exception as exc:  # pragma: no cover - UI path
+            self._show_error("撤单失败", str(exc))
 
     def refresh_market(self) -> None:
         try:
@@ -406,6 +443,20 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # pragma: no cover - UI path
             self._show_error("刷新持仓失败", str(exc))
 
+    def sync_broker_state(self, source: str) -> None:
+        positions = self.broker.get_positions()
+        account = self.broker.get_account()
+        orders = self.broker.get_orders()
+        trades = self.broker.get_trades()
+        events = self.broker.get_events()
+
+        self.storage.save_account_snapshot(AccountSnapshotRecord(account=account, source=source))
+        self.storage.save_position_snapshot(positions, source=source)
+        self.storage.save_broker_orders(orders)
+        self.storage.save_trades(trades)
+        self.storage.save_events(events)
+        self.refresh_positions()
+
     def refresh_records(self) -> None:
         self._populate_frame_table(
             self.backtest_table,
@@ -436,7 +487,38 @@ class MainWindow(QMainWindow):
                 ("mode", str),
                 ("accepted", lambda value: "是" if int(value) else "否"),
                 ("order_id", lambda value: value or "-"),
+                ("status", lambda value: value or "-"),
+                ("trade_id", lambda value: value or "-"),
                 ("message", str),
+            ],
+        )
+        self._populate_frame_table(
+            self.broker_order_table,
+            self.storage.list_broker_orders(),
+            [
+                ("captured_at", str),
+                ("order_id", str),
+                ("symbol", str),
+                ("side", str),
+                ("price", lambda value: f"{float(value):.2f}"),
+                ("volume", lambda value: str(int(value))),
+                ("filled_volume", lambda value: str(int(value))),
+                ("status", str),
+                ("message", str),
+            ],
+        )
+        self._populate_frame_table(
+            self.trade_table,
+            self.storage.list_trades(),
+            [
+                ("captured_at", str),
+                ("trade_id", str),
+                ("order_id", str),
+                ("symbol", str),
+                ("side", str),
+                ("price", lambda value: f"{float(value):.2f}"),
+                ("volume", lambda value: str(int(value))),
+                ("created_at", str),
             ],
         )
         self._populate_frame_table(
@@ -448,6 +530,40 @@ class MainWindow(QMainWindow):
                 ("signal", str),
                 ("reference_price", lambda value: f"{float(value):.2f}"),
                 ("reason", str),
+            ],
+        )
+        self._populate_frame_table(
+            self.account_snapshot_table,
+            self.storage.list_account_snapshots(),
+            [
+                ("created_at", str),
+                ("source", str),
+                ("cash", lambda value: f"{float(value):,.2f}"),
+                ("equity", lambda value: f"{float(value):,.2f}"),
+                ("market_value", lambda value: f"{float(value):,.2f}"),
+            ],
+        )
+        self._populate_frame_table(
+            self.position_snapshot_table,
+            self.storage.list_position_snapshots(),
+            [
+                ("created_at", str),
+                ("source", str),
+                ("symbol", str),
+                ("volume", lambda value: str(int(value))),
+                ("available_volume", lambda value: str(int(value))),
+                ("avg_price", lambda value: f"{float(value):.2f}"),
+                ("last_price", lambda value: f"{float(value):.2f}"),
+            ],
+        )
+        self._populate_frame_table(
+            self.event_table,
+            self.storage.list_events(),
+            [
+                ("created_at", str),
+                ("level", str),
+                ("category", str),
+                ("message", str),
             ],
         )
 

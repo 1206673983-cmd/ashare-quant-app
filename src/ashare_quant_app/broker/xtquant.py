@@ -1,10 +1,22 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from ashare_quant_app.broker.base import Broker
 from ashare_quant_app.config import XtQuantConfig
-from ashare_quant_app.models import AccountSnapshot, OrderRequest, OrderResult, Position, Signal
+from ashare_quant_app.models import (
+    AccountSnapshot,
+    BrokerEvent,
+    BrokerOrder,
+    EventLevel,
+    OrderRequest,
+    OrderResult,
+    OrderStatus,
+    Position,
+    Signal,
+    TradeFill,
+)
 
 
 class XtQuantBroker(Broker):
@@ -19,6 +31,7 @@ class XtQuantBroker(Broker):
         self.connected = False
         self._xt_trader = None
         self._stock_account = None
+        self._events: list[BrokerEvent] = []
 
     def connect(self) -> None:
         if not self.config.enabled:
@@ -55,6 +68,7 @@ class XtQuantBroker(Broker):
             raise RuntimeError("xtquant 账户订阅失败")
 
         self.connected = True
+        self._record_event(EventLevel.INFO, "connection", "xtquant 连接并订阅成功")
 
     def get_account(self) -> AccountSnapshot:
         self._ensure_connected()
@@ -79,30 +93,110 @@ class XtQuantBroker(Broker):
             )
         return positions
 
+    def get_orders(self) -> list[BrokerOrder]:
+        self._ensure_connected()
+        orders = []
+        query_fn = getattr(self._xt_trader, "query_stock_orders", None)
+        if query_fn is None:
+            return orders
+        for item in query_fn(self._stock_account) or []:
+            status_value = str(getattr(item, "order_status", "")).lower()
+            status = self._map_status(status_value)
+            orders.append(
+                BrokerOrder(
+                    order_id=str(getattr(item, "order_id", "")),
+                    symbol=str(getattr(item, "stock_code", "")),
+                    side=Signal.BUY if "buy" in str(getattr(item, "order_type", "")).lower() else Signal.SELL,
+                    price=float(getattr(item, "price", 0.0)),
+                    volume=int(getattr(item, "order_volume", 0)),
+                    filled_volume=int(getattr(item, "traded_volume", 0)),
+                    status=status,
+                    message=str(getattr(item, "status_msg", "")),
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+            )
+        return orders
+
+    def get_trades(self) -> list[TradeFill]:
+        self._ensure_connected()
+        trades = []
+        query_fn = getattr(self._xt_trader, "query_stock_trades", None)
+        if query_fn is None:
+            return trades
+        for item in query_fn(self._stock_account) or []:
+            trades.append(
+                TradeFill(
+                    trade_id=str(getattr(item, "traded_id", "")),
+                    order_id=str(getattr(item, "order_id", "")),
+                    symbol=str(getattr(item, "stock_code", "")),
+                    side=Signal.BUY if "buy" in str(getattr(item, "order_type", "")).lower() else Signal.SELL,
+                    price=float(getattr(item, "traded_price", 0.0)),
+                    volume=int(getattr(item, "traded_volume", 0)),
+                )
+            )
+        return trades
+
+    def get_events(self) -> list[BrokerEvent]:
+        return sorted(self._events, key=lambda item: item.created_at, reverse=True)
+
     def place_order(self, request: OrderRequest) -> OrderResult:
         self._ensure_connected()
 
         if request.side not in {Signal.BUY, Signal.SELL}:
-            return OrderResult(accepted=False, message="xtquant 仅支持买入或卖出")
+            return OrderResult(accepted=False, message="xtquant 仅支持买入或卖出", status=OrderStatus.REJECTED)
 
         order_type = self._resolve_order_type(request.side)
-        xt_order_id = self._xt_trader.order_stock(
-            self._stock_account,
-            request.symbol,
-            order_type,
-            int(request.volume),
-            23,  # 23 = 限价
-            float(request.price),
-            request.note or "ashare-quant-app",
-        )
+        try:
+            xt_order_id = self._xt_trader.order_stock(
+                self._stock_account,
+                request.symbol,
+                order_type,
+                int(request.volume),
+                23,  # 23 = 限价
+                float(request.price),
+                request.note or "ashare-quant-app",
+            )
+        except Exception as exc:
+            self._record_event(EventLevel.ERROR, "order", f"xtquant 下单异常: {exc}")
+            return OrderResult(accepted=False, message=f"xtquant 下单异常: {exc}", status=OrderStatus.REJECTED)
 
         if xt_order_id in (None, -1):
-            return OrderResult(accepted=False, message="xtquant 下单失败")
+            self._record_event(EventLevel.ERROR, "order", "xtquant 下单失败")
+            return OrderResult(accepted=False, message="xtquant 下单失败", status=OrderStatus.REJECTED)
+
+        self._record_event(
+            EventLevel.INFO,
+            "order",
+            f"xtquant 下单成功: {request.side.value} {request.symbol} {request.volume} @ {request.price:.2f}",
+        )
 
         return OrderResult(
             accepted=True,
             message=f"xtquant 下单成功: {request.side.value} {request.symbol} {request.volume}",
             order_id=str(xt_order_id),
+            status=OrderStatus.SUBMITTED,
+        )
+
+    def cancel_order(self, order_id: str) -> OrderResult:
+        self._ensure_connected()
+        cancel_fn = getattr(self._xt_trader, "cancel_order_stock", None)
+        if cancel_fn is None:
+            return OrderResult(accepted=False, message="当前 xtquant 版本不支持撤单接口", order_id=order_id)
+        try:
+            result = cancel_fn(self._stock_account, int(order_id))
+        except Exception as exc:
+            self._record_event(EventLevel.ERROR, "order", f"xtquant 撤单异常: {exc}")
+            return OrderResult(accepted=False, message=f"xtquant 撤单异常: {exc}", order_id=order_id)
+        if result in (None, -1, False):
+            self._record_event(EventLevel.ERROR, "order", f"xtquant 撤单失败: {order_id}")
+            return OrderResult(accepted=False, message="xtquant 撤单失败", order_id=order_id)
+        self._record_event(EventLevel.WARNING, "order", f"xtquant 撤单成功: {order_id}")
+        return OrderResult(
+            accepted=True,
+            message="xtquant 撤单成功",
+            order_id=order_id,
+            status=OrderStatus.CANCELLED,
         )
 
     def _resolve_order_type(self, side: Signal) -> int:
@@ -111,6 +205,20 @@ class XtQuantBroker(Broker):
         if side == Signal.BUY:
             return getattr(xtconstant, "STOCK_BUY")
         return getattr(xtconstant, "STOCK_SELL")
+
+    def _map_status(self, raw_status: str) -> OrderStatus:
+        if "cancel" in raw_status:
+            return OrderStatus.CANCELLED
+        if "fill" in raw_status or "trade" in raw_status:
+            return OrderStatus.FILLED
+        if "reject" in raw_status or "fail" in raw_status:
+            return OrderStatus.REJECTED
+        if "partial" in raw_status:
+            return OrderStatus.PARTIAL
+        return OrderStatus.SUBMITTED
+
+    def _record_event(self, level: EventLevel, category: str, message: str) -> None:
+        self._events.append(BrokerEvent(level=level, category=category, message=message))
 
     def _ensure_connected(self) -> None:
         if not self.connected or self._xt_trader is None or self._stock_account is None:
