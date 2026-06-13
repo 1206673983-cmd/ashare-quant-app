@@ -84,7 +84,10 @@ class AkshareDataProvider(DataProvider):
             filtered["data_source"] = "realtime"
             return filtered.reset_index(drop=True)
         except Exception:
-            return self._build_history_fallback_snapshot(sorted(wanted))
+            try:
+                return self._build_history_fallback_snapshot(sorted(wanted))
+            except Exception:
+                return self._build_offline_snapshot(sorted(wanted))
 
     def _build_history_fallback_snapshot(self, symbols: list[str]) -> pd.DataFrame:
         rows: list[dict] = []
@@ -122,4 +125,28 @@ class AkshareDataProvider(DataProvider):
                 }
             )
 
+        return pd.DataFrame(rows)
+
+    def _build_offline_snapshot(self, symbols: list[str]) -> pd.DataFrame:
+        rows: list[dict] = []
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for index, symbol in enumerate(symbols):
+            # Deterministic local fallback so the simulator can run fully offline.
+            base_price = 10.0 + index * 5.0
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "name": f"{symbol}-offline",
+                    "last_price": base_price,
+                    "pct_change": 0.0,
+                    "volume": 0,
+                    "turnover": 0.0,
+                    "high": round(base_price * 1.01, 2),
+                    "low": round(base_price * 0.99, 2),
+                    "open": base_price,
+                    "pre_close": base_price,
+                    "updated_at": now,
+                    "data_source": "offline_fallback",
+                }
+            )
         return pd.DataFrame(rows)
