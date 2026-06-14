@@ -69,51 +69,37 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(
             """
             QMainWindow, QWidget {
-                background: #0b1220;
-                color: #dbe4f0;
+                background: #f5f7fb;
+                color: #1f2937;
                 font-size: 13px;
             }
             QFrame#Card {
-                background: #111a2e;
-                border: 1px solid #1d2942;
+                background: #ffffff;
+                border: 1px solid #dde5f0;
                 border-radius: 14px;
             }
             QFrame#StatusCard {
-                background: #13203a;
-                border: 1px solid #223252;
+                background: #ffffff;
+                border: 1px solid #d8e1ee;
                 border-radius: 12px;
             }
             QLabel#SectionTitle {
                 font-size: 15px;
                 font-weight: 700;
-                color: #f3f7fb;
+                color: #0f172a;
             }
             QLabel#SectionHint {
-                color: #8ea2c0;
+                color: #64748b;
                 font-size: 12px;
             }
             QLabel#StatusValue {
                 font-size: 13px;
                 font-weight: 600;
-                color: #ffffff;
+                color: #0f172a;
             }
             QLabel#StatusCaption {
-                color: #87a0c0;
+                color: #64748b;
                 font-size: 11px;
-            }
-            QGroupBox {
-                border: 1px solid #1d2942;
-                border-radius: 12px;
-                margin-top: 14px;
-                padding-top: 10px;
-                background: #111a2e;
-                font-weight: 600;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 6px;
-                color: #cfe0f5;
             }
             QPushButton {
                 background: #1d4ed8;
@@ -130,41 +116,43 @@ class MainWindow(QMainWindow):
                 background: #1845c0;
             }
             QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
-                background: #0d1729;
-                border: 1px solid #233452;
+                background: #ffffff;
+                border: 1px solid #cfd8e3;
                 border-radius: 8px;
                 padding: 6px 8px;
-                color: #e9f0f8;
+                color: #111827;
             }
             QTableWidget, QTabWidget::pane {
-                background: #0d1729;
-                border: 1px solid #233452;
+                background: #ffffff;
+                border: 1px solid #d6deea;
                 border-radius: 10px;
-                gridline-color: #1b2942;
+                gridline-color: #e8edf5;
             }
             QHeaderView::section {
-                background: #13203a;
-                color: #bcd0ea;
+                background: #f8fafc;
+                color: #334155;
                 border: none;
-                border-bottom: 1px solid #233452;
+                border-bottom: 1px solid #d6deea;
                 padding: 8px;
                 font-weight: 600;
             }
             QTableWidget {
                 selection-background-color: #1f4fd1;
                 selection-color: white;
+                alternate-background-color: #f8fbff;
             }
             QTabBar::tab {
-                background: #111a2e;
-                color: #9eb2cf;
+                background: #eef3f9;
+                color: #64748b;
                 padding: 8px 14px;
                 margin-right: 4px;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
+                border: 1px solid #d6deea;
             }
             QTabBar::tab:selected {
-                background: #1b2a47;
-                color: #ffffff;
+                background: #ffffff;
+                color: #0f172a;
             }
             QCheckBox {
                 spacing: 6px;

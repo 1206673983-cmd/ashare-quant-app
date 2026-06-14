@@ -20,12 +20,12 @@ class BaseChartView(QChartView):
         chart.setBackgroundVisible(True)
         chart.setBackgroundBrush(Qt.GlobalColor.transparent)
         chart.setPlotAreaBackgroundVisible(False)
-        chart.setTitleBrush(Qt.GlobalColor.white)
-        chart.legend().setLabelColor(Qt.GlobalColor.lightGray)
+        chart.setTitleBrush(Qt.GlobalColor.black)
+        chart.legend().setLabelColor(Qt.GlobalColor.darkGray)
         super().__init__(chart)
         self.setRenderHint(QPainter.Antialiasing)
         self.setMinimumHeight(280)
-        self.setStyleSheet("background: #0d1729; border: 1px solid #233452; border-radius: 10px;")
+        self.setStyleSheet("background: #ffffff; border: 1px solid #d6deea; border-radius: 10px;")
 
 
 class PriceChartView(BaseChartView):
@@ -38,8 +38,8 @@ class PriceChartView(BaseChartView):
         chart.legend().setVisible(True)
         chart.setBackgroundVisible(True)
         chart.setBackgroundBrush(Qt.GlobalColor.transparent)
-        chart.setTitleBrush(Qt.GlobalColor.white)
-        chart.legend().setLabelColor(Qt.GlobalColor.lightGray)
+        chart.setTitleBrush(Qt.GlobalColor.black)
+        chart.legend().setLabelColor(Qt.GlobalColor.darkGray)
 
         if history.empty:
             self.setChart(chart)
@@ -80,9 +80,9 @@ class PriceChartView(BaseChartView):
         x_axis.setLabelFormat("%.0f")
         x_axis.setTickCount(min(len(frame), 8))
         x_axis.setTitleText("最近交易日序号")
-        x_axis.setLabelsColor(Qt.GlobalColor.lightGray)
-        x_axis.setTitleBrush(Qt.GlobalColor.lightGray)
-        x_axis.setGridLineColor(Qt.GlobalColor.darkGray)
+        x_axis.setLabelsColor(Qt.GlobalColor.darkGray)
+        x_axis.setTitleBrush(Qt.GlobalColor.darkGray)
+        x_axis.setGridLineColor(Qt.GlobalColor.lightGray)
 
         min_price = float(frame["low"].min()) * 0.98
         max_price = float(frame["high"].max()) * 1.02
@@ -90,9 +90,9 @@ class PriceChartView(BaseChartView):
         y_axis.setRange(min_price, max_price)
         y_axis.setLabelFormat("%.2f")
         y_axis.setTitleText("价格")
-        y_axis.setLabelsColor(Qt.GlobalColor.lightGray)
-        y_axis.setTitleBrush(Qt.GlobalColor.lightGray)
-        y_axis.setGridLineColor(Qt.GlobalColor.darkGray)
+        y_axis.setLabelsColor(Qt.GlobalColor.darkGray)
+        y_axis.setTitleBrush(Qt.GlobalColor.darkGray)
+        y_axis.setGridLineColor(Qt.GlobalColor.lightGray)
 
         chart.addAxis(x_axis, Qt.AlignmentFlag.AlignBottom)
         chart.addAxis(y_axis, Qt.AlignmentFlag.AlignLeft)
@@ -113,8 +113,8 @@ class EquityChartView(BaseChartView):
         chart.legend().setVisible(True)
         chart.setBackgroundVisible(True)
         chart.setBackgroundBrush(Qt.GlobalColor.transparent)
-        chart.setTitleBrush(Qt.GlobalColor.white)
-        chart.legend().setLabelColor(Qt.GlobalColor.lightGray)
+        chart.setTitleBrush(Qt.GlobalColor.black)
+        chart.legend().setLabelColor(Qt.GlobalColor.darkGray)
 
         if equity_curve.empty:
             self.setChart(chart)
@@ -134,24 +134,24 @@ class EquityChartView(BaseChartView):
         price_axis.setLabelFormat("%.0f")
         price_axis.setTitleText("资产")
         price_axis.setRange(float(frame["equity"].min()) * 0.995, float(frame["equity"].max()) * 1.005)
-        price_axis.setLabelsColor(Qt.GlobalColor.lightGray)
-        price_axis.setTitleBrush(Qt.GlobalColor.lightGray)
-        price_axis.setGridLineColor(Qt.GlobalColor.darkGray)
+        price_axis.setLabelsColor(Qt.GlobalColor.darkGray)
+        price_axis.setTitleBrush(Qt.GlobalColor.darkGray)
+        price_axis.setGridLineColor(Qt.GlobalColor.lightGray)
 
         x_axis = QValueAxis()
         x_axis.setLabelFormat("%.0f")
         x_axis.setTickCount(min(len(frame), 8))
         x_axis.setTitleText("回测步数")
-        x_axis.setLabelsColor(Qt.GlobalColor.lightGray)
-        x_axis.setTitleBrush(Qt.GlobalColor.lightGray)
-        x_axis.setGridLineColor(Qt.GlobalColor.darkGray)
+        x_axis.setLabelsColor(Qt.GlobalColor.darkGray)
+        x_axis.setTitleBrush(Qt.GlobalColor.darkGray)
+        x_axis.setGridLineColor(Qt.GlobalColor.lightGray)
 
         dd_axis = QValueAxis()
         dd_axis.setLabelFormat("%.2f%%")
         dd_axis.setTitleText("回撤")
         dd_axis.setRange(float(frame.get("drawdown", pd.Series([0.0])).min() * 100), 0.0)
-        dd_axis.setLabelsColor(Qt.GlobalColor.lightGray)
-        dd_axis.setTitleBrush(Qt.GlobalColor.lightGray)
+        dd_axis.setLabelsColor(Qt.GlobalColor.darkGray)
+        dd_axis.setTitleBrush(Qt.GlobalColor.darkGray)
 
         chart.addSeries(equity_series)
         chart.addSeries(drawdown_series)
