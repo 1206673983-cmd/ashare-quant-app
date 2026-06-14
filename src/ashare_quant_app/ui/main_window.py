@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
@@ -44,7 +44,7 @@ from ashare_quant_app.ui.charts import EquityChartView, PriceChartView
 class MainWindow(QMainWindow):
     def __init__(self, config_path: str | None = None) -> None:
         super().__init__()
-        self.setWindowTitle("A股量化交易终端")
+        self.setWindowTitle("A鑲￠噺鍖栦氦鏄撶粓绔?)
         self.resize(1600, 1020)
 
         default_config = config_path or str(Path.cwd() / "config.example.toml")
@@ -221,9 +221,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(18, 16, 18, 16)
 
         title_layout = QVBoxLayout()
-        title = QLabel("A股量化交易工作台")
+        title = QLabel("A鑲￠噺鍖栦氦鏄撳伐浣滃彴")
         title.setObjectName("SectionTitle")
-        hint = QLabel("参考主流量化终端布局，聚合策略、行情、风控、图表和交易记录")
+        hint = QLabel("鍙傝€冧富娴侀噺鍖栫粓绔竷灞€锛岃仛鍚堢瓥鐣ャ€佽鎯呫€侀鎺с€佸浘琛ㄥ拰浜ゆ槗璁板綍")
         hint.setObjectName("SectionHint")
         title_layout.addWidget(title)
         title_layout.addWidget(hint)
@@ -235,8 +235,8 @@ class MainWindow(QMainWindow):
         menu_bar = self.menuBar()
         menu_bar.clear()
 
-        strategy_menu = menu_bar.addMenu("策略风控配置")
-        self.strategy_panel_action = QAction("显示参数面板", self)
+        strategy_menu = menu_bar.addMenu("绛栫暐椋庢帶閰嶇疆")
+        self.strategy_panel_action = QAction("鏄剧ず鍙傛暟闈㈡澘", self)
         self.strategy_panel_action.setCheckable(True)
         self.strategy_panel_action.setChecked(True)
         self.strategy_panel_action.toggled.connect(
@@ -244,41 +244,41 @@ class MainWindow(QMainWindow):
         )
         strategy_menu.addAction(self.strategy_panel_action)
 
-        self.auto_refresh_action = QAction("启用自动刷新", self)
+        self.auto_refresh_action = QAction("鍚敤鑷姩鍒锋柊", self)
         self.auto_refresh_action.setCheckable(True)
         self.auto_refresh_action.setChecked(self.auto_refresh_check.isChecked())
         self.auto_refresh_action.toggled.connect(self.auto_refresh_check.setChecked)
         strategy_menu.addAction(self.auto_refresh_action)
 
-        load_config_action = QAction("重新加载配置", self)
+        load_config_action = QAction("閲嶆柊鍔犺浇閰嶇疆", self)
         load_config_action.triggered.connect(self.load_config)
         strategy_menu.addAction(load_config_action)
 
-        focus_strategy_action = QAction("聚焦参数面板", self)
+        focus_strategy_action = QAction("鑱氱劍鍙傛暟闈㈡澘", self)
         focus_strategy_action.triggered.connect(lambda: self._focus_panel(self.control_panel_container))
         strategy_menu.addAction(focus_strategy_action)
 
-        market_menu = menu_bar.addMenu("市场监控")
-        self.market_panel_action = QAction("显示市场监控", self)
+        market_menu = menu_bar.addMenu("甯傚満鐩戞帶")
+        self.market_panel_action = QAction("鏄剧ず甯傚満鐩戞帶", self)
         self.market_panel_action.setCheckable(True)
         self.market_panel_action.setChecked(True)
         self.market_panel_action.toggled.connect(lambda checked: self._set_panel_visible(self.market_panel_card, checked))
         market_menu.addAction(self.market_panel_action)
 
-        refresh_market_action = QAction("刷新行情", self)
+        refresh_market_action = QAction("鍒锋柊琛屾儏", self)
         refresh_market_action.triggered.connect(self.refresh_market)
         market_menu.addAction(refresh_market_action)
 
-        refresh_positions_action = QAction("刷新持仓", self)
+        refresh_positions_action = QAction("鍒锋柊鎸佷粨", self)
         refresh_positions_action.triggered.connect(self.refresh_positions)
         market_menu.addAction(refresh_positions_action)
 
-        focus_market_action = QAction("聚焦市场监控", self)
+        focus_market_action = QAction("鑱氱劍甯傚満鐩戞帶", self)
         focus_market_action.triggered.connect(lambda: self._focus_panel(self.market_panel_card))
         market_menu.addAction(focus_market_action)
 
-        records_menu = menu_bar.addMenu("交易记录")
-        self.records_panel_action = QAction("显示交易记录面板", self)
+        records_menu = menu_bar.addMenu("浜ゆ槗璁板綍")
+        self.records_panel_action = QAction("鏄剧ず浜ゆ槗璁板綍闈㈡澘", self)
         self.records_panel_action.setCheckable(True)
         self.records_panel_action.setChecked(True)
         self.records_panel_action.toggled.connect(
@@ -286,38 +286,38 @@ class MainWindow(QMainWindow):
         )
         records_menu.addAction(self.records_panel_action)
 
-        focus_records_action = QAction("聚焦交易记录", self)
+        focus_records_action = QAction("鑱氱劍浜ゆ槗璁板綍", self)
         focus_records_action.triggered.connect(lambda: self._focus_panel(self.records_panel_card))
         records_menu.addAction(focus_records_action)
 
-        order_records_action = QAction("切换到委托中心", self)
-        order_records_action.triggered.connect(lambda: self._open_record_tab("委托中心"))
+        order_records_action = QAction("鍒囨崲鍒板鎵樹腑蹇?, self)
+        order_records_action.triggered.connect(lambda: self._open_record_tab("濮旀墭涓績"))
         records_menu.addAction(order_records_action)
 
-        trade_records_action = QAction("切换到成交记录", self)
-        trade_records_action.triggered.connect(lambda: self._open_record_tab("成交记录"))
+        trade_records_action = QAction("鍒囨崲鍒版垚浜よ褰?, self)
+        trade_records_action.triggered.connect(lambda: self._open_record_tab("鎴愪氦璁板綍"))
         records_menu.addAction(trade_records_action)
 
-        event_records_action = QAction("切换到事件日志", self)
-        event_records_action.triggered.connect(lambda: self._open_record_tab("事件日志"))
+        event_records_action = QAction("鍒囨崲鍒颁簨浠舵棩蹇?, self)
+        event_records_action.triggered.connect(lambda: self._open_record_tab("浜嬩欢鏃ュ織"))
         records_menu.addAction(event_records_action)
 
-        chart_menu = menu_bar.addMenu("图表分析")
-        self.chart_panel_action = QAction("显示图表分析", self)
+        chart_menu = menu_bar.addMenu("鍥捐〃鍒嗘瀽")
+        self.chart_panel_action = QAction("鏄剧ず鍥捐〃鍒嗘瀽", self)
         self.chart_panel_action.setCheckable(True)
         self.chart_panel_action.setChecked(True)
         self.chart_panel_action.toggled.connect(lambda checked: self._set_panel_visible(self.chart_panel_card, checked))
         chart_menu.addAction(self.chart_panel_action)
 
-        run_backtest_action = QAction("运行回测", self)
+        run_backtest_action = QAction("杩愯鍥炴祴", self)
         run_backtest_action.triggered.connect(self.run_backtest)
         chart_menu.addAction(run_backtest_action)
 
-        evaluate_signal_action = QAction("评估当前信号", self)
+        evaluate_signal_action = QAction("璇勪及褰撳墠淇″彿", self)
         evaluate_signal_action.triggered.connect(self.evaluate_signal)
         chart_menu.addAction(evaluate_signal_action)
 
-        focus_chart_action = QAction("聚焦图表分析", self)
+        focus_chart_action = QAction("鑱氱劍鍥捐〃鍒嗘瀽", self)
         focus_chart_action.triggered.connect(lambda: self._focus_panel(self.chart_panel_card))
         chart_menu.addAction(focus_chart_action)
 
@@ -343,13 +343,13 @@ class MainWindow(QMainWindow):
         ]:
             status_bar.addWidget(label)
 
-        self.mode_label.setText("模式: -")
-        self.strategy_label.setText("策略: -")
-        self.account_label.setText("账户: -")
-        self.signal_label.setText("最近信号: -")
-        self.refresh_label.setText("刷新: -")
-        self.data_source_label.setText("数据链路: -")
-        self.storage_label.setText("数据库: -")
+        self.mode_label.setText("妯″紡: -")
+        self.strategy_label.setText("绛栫暐: -")
+        self.account_label.setText("璐︽埛: -")
+        self.signal_label.setText("鏈€杩戜俊鍙? -")
+        self.refresh_label.setText("鍒锋柊: -")
+        self.data_source_label.setText("鏁版嵁閾捐矾: -")
+        self.storage_label.setText("鏁版嵁搴? -")
 
     def _new_status_label(self, minimum_width: int) -> QLabel:
         label = QLabel()
@@ -407,15 +407,15 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(16, 16, 16, 16)
         outer.setSpacing(12)
 
-        outer.addWidget(self._make_section_header("策略与风控", "调整参数后可直接刷新运行时配置"))
+        outer.addWidget(self._make_section_header("绛栫暐涓庨鎺?, "璋冩暣鍙傛暟鍚庡彲鐩存帴鍒锋柊杩愯鏃堕厤缃?))
 
         grid = QGridLayout()
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(10)
 
         self.config_path_edit = QLineEdit()
-        browse_btn = QPushButton("选择配置")
-        load_btn = QPushButton("加载配置")
+        browse_btn = QPushButton("閫夋嫨閰嶇疆")
+        load_btn = QPushButton("鍔犺浇閰嶇疆")
         browse_btn.clicked.connect(self._choose_config)
         load_btn.clicked.connect(self.load_config)
 
@@ -435,21 +435,21 @@ class MainWindow(QMainWindow):
         self.max_trades_spin.setRange(1, 999)
         self.min_interval_spin = QSpinBox()
         self.min_interval_spin.setRange(0, 3600)
-        self.auto_refresh_check = QCheckBox("自动刷新")
-        self.auto_execute_check = QCheckBox("自动执行")
+        self.auto_refresh_check = QCheckBox("鑷姩鍒锋柊")
+        self.auto_execute_check = QCheckBox("鑷姩鎵ц")
         self.auto_refresh_interval_spin = QSpinBox()
         self.auto_refresh_interval_spin.setRange(5, 3600)
         self.auto_refresh_check.stateChanged.connect(self._on_auto_refresh_settings_changed)
         self.auto_execute_check.stateChanged.connect(self._on_auto_refresh_settings_changed)
         self.auto_refresh_interval_spin.valueChanged.connect(self._on_auto_refresh_settings_changed)
 
-        backtest_btn = QPushButton("运行回测")
-        signal_btn = QPushButton("评估信号")
-        execute_btn = QPushButton("执行信号")
-        cancel_btn = QPushButton("撤销委托")
-        quote_btn = QPushButton("刷新行情")
-        position_btn = QPushButton("刷新持仓")
-        refresh_record_btn = QPushButton("刷新记录")
+        backtest_btn = QPushButton("杩愯鍥炴祴")
+        signal_btn = QPushButton("璇勪及淇″彿")
+        execute_btn = QPushButton("鎵ц淇″彿")
+        cancel_btn = QPushButton("鎾ら攢濮旀墭")
+        quote_btn = QPushButton("鍒锋柊琛屾儏")
+        position_btn = QPushButton("鍒锋柊鎸佷粨")
+        refresh_record_btn = QPushButton("鍒锋柊璁板綍")
 
         backtest_btn.clicked.connect(self.run_backtest)
         signal_btn.clicked.connect(self.evaluate_signal)
@@ -459,34 +459,34 @@ class MainWindow(QMainWindow):
         position_btn.clicked.connect(self.refresh_positions)
         refresh_record_btn.clicked.connect(self.refresh_records)
 
-        grid.addWidget(QLabel("配置文件"), 0, 0)
+        grid.addWidget(QLabel("閰嶇疆鏂囦欢"), 0, 0)
         grid.addWidget(self.config_path_edit, 0, 1, 1, 3)
         grid.addWidget(browse_btn, 0, 4)
         grid.addWidget(load_btn, 0, 5)
 
-        grid.addWidget(QLabel("交易标的"), 1, 0)
+        grid.addWidget(QLabel("浜ゆ槗鏍囩殑"), 1, 0)
         grid.addWidget(self.symbol_combo, 1, 1)
-        grid.addWidget(QLabel("快线"), 1, 2)
+        grid.addWidget(QLabel("蹇嚎"), 1, 2)
         grid.addWidget(self.fast_window_spin, 1, 3)
-        grid.addWidget(QLabel("慢线"), 1, 4)
+        grid.addWidget(QLabel("鎱㈢嚎"), 1, 4)
         grid.addWidget(self.slow_window_spin, 1, 5)
-        grid.addWidget(QLabel("每次股数"), 2, 0)
+        grid.addWidget(QLabel("姣忔鑲℃暟"), 2, 0)
         grid.addWidget(self.trade_size_spin, 2, 1)
 
-        grid.addWidget(QLabel("止损%"), 2, 2)
+        grid.addWidget(QLabel("姝㈡崯%"), 2, 2)
         grid.addWidget(self.stop_loss_spin, 2, 3)
-        grid.addWidget(QLabel("止盈%"), 2, 4)
+        grid.addWidget(QLabel("姝㈢泩%"), 2, 4)
         grid.addWidget(self.take_profit_spin, 2, 5)
-        grid.addWidget(QLabel("日内上限"), 3, 0)
+        grid.addWidget(QLabel("鏃ュ唴涓婇檺"), 3, 0)
         grid.addWidget(self.max_trades_spin, 3, 1)
-        grid.addWidget(QLabel("最小间隔秒"), 3, 2)
+        grid.addWidget(QLabel("鏈€灏忛棿闅旂"), 3, 2)
         grid.addWidget(self.min_interval_spin, 3, 3)
 
         grid.addWidget(self.auto_refresh_check, 4, 0)
         grid.addWidget(self.auto_execute_check, 4, 1)
-        grid.addWidget(QLabel("刷新秒数"), 4, 2)
+        grid.addWidget(QLabel("鍒锋柊绉掓暟"), 4, 2)
         grid.addWidget(self.auto_refresh_interval_spin, 4, 3)
-        grid.addWidget(QLabel("撤单订单号"), 4, 4)
+        grid.addWidget(QLabel("鎾ゅ崟璁㈠崟鍙?), 4, 4)
         grid.addWidget(self.cancel_order_edit, 4, 5)
         grid.addWidget(cancel_btn, 4, 6)
 
@@ -522,7 +522,7 @@ class MainWindow(QMainWindow):
         center_layout = QVBoxLayout(center_card)
         center_layout.setContentsMargins(16, 16, 16, 16)
         center_layout.setSpacing(10)
-        center_layout.addWidget(self._make_section_header("图表分析", "查看价格结构、均线形态和权益曲线"))
+        center_layout.addWidget(self._make_section_header("鍥捐〃鍒嗘瀽", "鏌ョ湅浠锋牸缁撴瀯銆佸潎绾垮舰鎬佸拰鏉冪泭鏇茬嚎"))
         self.price_chart = PriceChartView()
         self.equity_chart = EquityChartView()
         center_layout.addWidget(self.price_chart, 1)
@@ -533,12 +533,12 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout(right_card)
         right_layout.setContentsMargins(16, 16, 16, 16)
         right_layout.setSpacing(10)
-        right_layout.addWidget(self._make_section_header("市场监控", "实时行情、持仓与交易监视"))
-        right_layout.addWidget(QLabel("实时行情"))
-        self.quote_table = self._new_table(["代码", "名称", "最新价", "涨跌幅", "成交量", "更新时间", "来源"])
+        right_layout.addWidget(self._make_section_header("甯傚満鐩戞帶", "瀹炴椂琛屾儏銆佹寔浠撲笌浜ゆ槗鐩戣"))
+        right_layout.addWidget(QLabel("瀹炴椂琛屾儏"))
+        self.quote_table = self._new_table(["浠ｇ爜", "鍚嶇О", "鏈€鏂颁环", "娑ㄨ穼骞?, "鎴愪氦閲?, "鏇存柊鏃堕棿", "鏉ユ簮"])
         right_layout.addWidget(self.quote_table, 3)
-        right_layout.addWidget(QLabel("当前持仓"))
-        self.position_table = self._new_table(["代码", "数量", "可用", "成本价", "最新价"])
+        right_layout.addWidget(QLabel("褰撳墠鎸佷粨"))
+        self.position_table = self._new_table(["浠ｇ爜", "鏁伴噺", "鍙敤", "鎴愭湰浠?, "鏈€鏂颁环"])
         right_layout.addWidget(self.position_table, 2)
 
         splitter.addWidget(sidebar_scroll)
@@ -553,40 +553,40 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(card)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
-        layout.addWidget(self._make_section_header("交易记录中心", "集中查看回测、委托、成交、快照与事件"))
+        layout.addWidget(self._make_section_header("浜ゆ槗璁板綍涓績", "闆嗕腑鏌ョ湅鍥炴祴銆佸鎵樸€佹垚浜ゃ€佸揩鐓т笌浜嬩欢"))
 
         self.record_tabs = QTabWidget()
         self.backtest_table = self._new_table(
-            ["时间", "代码", "策略", "快线", "慢线", "股数", "总收益", "年化", "回撤", "夏普", "交易数"]
+            ["鏃堕棿", "浠ｇ爜", "绛栫暐", "蹇嚎", "鎱㈢嚎", "鑲℃暟", "鎬绘敹鐩?, "骞村寲", "鍥炴挙", "澶忔櫘", "浜ゆ槗鏁?]
         )
         self.order_table = self._new_table(
-            ["时间", "代码", "方向", "价格", "股数", "模式", "成功", "订单号", "状态", "成交号", "结果"]
+            ["鏃堕棿", "浠ｇ爜", "鏂瑰悜", "浠锋牸", "鑲℃暟", "妯″紡", "鎴愬姛", "璁㈠崟鍙?, "鐘舵€?, "鎴愪氦鍙?, "缁撴灉"]
         )
-        self.signal_table = self._new_table(["时间", "代码", "信号", "参考价", "原因"])
+        self.signal_table = self._new_table(["鏃堕棿", "浠ｇ爜", "淇″彿", "鍙傝€冧环", "鍘熷洜"])
         self.broker_order_table = self._new_table(
-            ["抓取时间", "订单号", "代码", "方向", "价格", "委托量", "成交量", "状态", "说明"]
+            ["鎶撳彇鏃堕棿", "璁㈠崟鍙?, "浠ｇ爜", "鏂瑰悜", "浠锋牸", "濮旀墭閲?, "鎴愪氦閲?, "鐘舵€?, "璇存槑"]
         )
         self.trade_table = self._new_table(
-            ["抓取时间", "成交号", "订单号", "代码", "方向", "价格", "数量", "成交时间"]
+            ["鎶撳彇鏃堕棿", "鎴愪氦鍙?, "璁㈠崟鍙?, "浠ｇ爜", "鏂瑰悜", "浠锋牸", "鏁伴噺", "鎴愪氦鏃堕棿"]
         )
-        self.account_snapshot_table = self._new_table(["时间", "来源", "现金", "总资产", "持仓市值"])
+        self.account_snapshot_table = self._new_table(["鏃堕棿", "鏉ユ簮", "鐜伴噾", "鎬昏祫浜?, "鎸佷粨甯傚€?])
         self.position_snapshot_table = self._new_table(
-            ["时间", "来源", "代码", "数量", "可用", "成本价", "最新价"]
+            ["鏃堕棿", "鏉ユ簮", "浠ｇ爜", "鏁伴噺", "鍙敤", "鎴愭湰浠?, "鏈€鏂颁环"]
         )
-        self.event_table = self._new_table(["时间", "级别", "类别", "消息"])
+        self.event_table = self._new_table(["鏃堕棿", "绾у埆", "绫诲埆", "娑堟伅"])
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
 
-        self.record_tabs.addTab(self.backtest_table, "回测记录")
-        self.record_tabs.addTab(self.order_table, "订单记录")
-        self.record_tabs.addTab(self.broker_order_table, "委托中心")
-        self.record_tabs.addTab(self.trade_table, "成交记录")
-        self.record_tabs.addTab(self.signal_table, "信号记录")
-        self.record_tabs.addTab(self.account_snapshot_table, "账户快照")
-        self.record_tabs.addTab(self.position_snapshot_table, "持仓快照")
-        self.record_tabs.addTab(self.event_table, "事件日志")
-        self.record_tabs.addTab(self.log_view, "运行日志")
+        self.record_tabs.addTab(self.backtest_table, "鍥炴祴璁板綍")
+        self.record_tabs.addTab(self.order_table, "璁㈠崟璁板綍")
+        self.record_tabs.addTab(self.broker_order_table, "濮旀墭涓績")
+        self.record_tabs.addTab(self.trade_table, "鎴愪氦璁板綍")
+        self.record_tabs.addTab(self.signal_table, "淇″彿璁板綍")
+        self.record_tabs.addTab(self.account_snapshot_table, "璐︽埛蹇収")
+        self.record_tabs.addTab(self.position_snapshot_table, "鎸佷粨蹇収")
+        self.record_tabs.addTab(self.event_table, "浜嬩欢鏃ュ織")
+        self.record_tabs.addTab(self.log_view, "杩愯鏃ュ織")
         layout.addWidget(self.record_tabs)
         return card
 
@@ -636,7 +636,7 @@ class MainWindow(QMainWindow):
         return self._make_info_card(caption, label)
 
     def _choose_config(self) -> None:
-        chosen, _ = QFileDialog.getOpenFileName(self, "选择配置文件", self.config_path, "TOML Files (*.toml)")
+        chosen, _ = QFileDialog.getOpenFileName(self, "閫夋嫨閰嶇疆鏂囦欢", self.config_path, "TOML Files (*.toml)")
         if chosen:
             self.config_path_edit.setText(chosen)
 
@@ -666,9 +666,9 @@ class MainWindow(QMainWindow):
             self.refresh_market()
             self.refresh_records()
             self._configure_auto_refresh()
-            self.log(f"加载配置成功: {self.config_path}")
+            self.log(f"鍔犺浇閰嶇疆鎴愬姛: {self.config_path}")
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("加载配置失败", str(exc))
+            self._show_error("鍔犺浇閰嶇疆澶辫触", str(exc))
 
     def _refresh_runtime(self, reset_broker: bool = False) -> None:
         self._apply_strategy_controls_to_config()
@@ -696,7 +696,7 @@ class MainWindow(QMainWindow):
         fast_window = self.fast_window_spin.value()
         slow_window = self.slow_window_spin.value()
         if fast_window >= slow_window:
-            raise ValueError("快线必须小于慢线")
+            raise ValueError("蹇嚎蹇呴』灏忎簬鎱㈢嚎")
         self.config.strategy.fast_window = fast_window
         self.config.strategy.slow_window = slow_window
         self.config.strategy.trade_size = self.trade_size_spin.value()
@@ -709,26 +709,26 @@ class MainWindow(QMainWindow):
         self.config.auto_refresh.interval_seconds = self.auto_refresh_interval_spin.value()
 
     def _refresh_status_labels(self) -> None:
-        mode = "QMT 实盘" if self.config.xtquant.enabled and not self.config.risk.dry_run else "本地 Dry Run"
-        self.mode_label.setText(f"模式: {mode}")
+        mode = "QMT 瀹炵洏" if self.config.xtquant.enabled and not self.config.risk.dry_run else "鏈湴 Dry Run"
+        self.mode_label.setText(f"妯″紡: {mode}")
         self.strategy_label.setText(
-            f"策略: 双均线 {self.config.strategy.fast_window}/{self.config.strategy.slow_window} | "
-            f"每次 {self.config.strategy.trade_size} 股"
+            f"绛栫暐: 鍙屽潎绾?{self.config.strategy.fast_window}/{self.config.strategy.slow_window} | "
+            f"姣忔 {self.config.strategy.trade_size} 鑲?
         )
-        self.storage_label.setText(f"数据库: {self.storage.db_path}")
-        refresh_mode = f"每 {self.config.auto_refresh.interval_seconds}s" if self.config.auto_refresh.enabled else "手动"
-        refresh_text = f"刷新: {refresh_mode} | 最近 {self.last_refresh_at}"
+        self.storage_label.setText(f"鏁版嵁搴? {self.storage.db_path}")
+        refresh_mode = f"姣?{self.config.auto_refresh.interval_seconds}s" if self.config.auto_refresh.enabled else "鎵嬪姩"
+        refresh_text = f"鍒锋柊: {refresh_mode} | 鏈€杩?{self.last_refresh_at}"
         self.refresh_label.setText(refresh_text)
-        self.data_source_label.setText(f"数据链路: {self.last_data_source}")
+        self.data_source_label.setText(f"鏁版嵁閾捐矾: {self.last_data_source}")
         if hasattr(self, "auto_refresh_action") and self.auto_refresh_action.isChecked() != self.auto_refresh_check.isChecked():
             self.auto_refresh_action.setChecked(self.auto_refresh_check.isChecked())
         try:
             account = self.broker.get_account()
             self.account_label.setText(
-                f"账户: 现金 {account.cash:,.0f} | 总资产 {account.equity:,.0f}"
+                f"璐︽埛: 鐜伴噾 {account.cash:,.0f} | 鎬昏祫浜?{account.equity:,.0f}"
             )
         except Exception:
-            self.account_label.setText("账户: -")
+            self.account_label.setText("璐︽埛: -")
 
     def run_backtest(self) -> None:
         try:
@@ -764,32 +764,32 @@ class MainWindow(QMainWindow):
             )
             self.refresh_records()
             self.log(
-                "回测完成 | "
-                f"{symbol} | 总收益 {result.total_return:.2%} | 年化 {result.annual_return:.2%} | "
-                f"最大回撤 {result.max_drawdown:.2%} | 夏普 {result.sharpe:.2f} | 交易次数 {result.trades}"
+                "鍥炴祴瀹屾垚 | "
+                f"{symbol} | 鎬绘敹鐩?{result.total_return:.2%} | 骞村寲 {result.annual_return:.2%} | "
+                f"鏈€澶у洖鎾?{result.max_drawdown:.2%} | 澶忔櫘 {result.sharpe:.2f} | 浜ゆ槗娆℃暟 {result.trades}"
             )
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("回测失败", str(exc))
+            self._show_error("鍥炴祴澶辫触", str(exc))
 
     def evaluate_signal(self) -> None:
         try:
             decision = self._evaluate_current_symbol(save_signal=True)
             self.signal_label.setText(
-                f"最近信号: {decision.signal.value.upper()} @ {decision.reference_price:.2f} | {decision.reason}"
+                f"鏈€杩戜俊鍙? {decision.signal.value.upper()} @ {decision.reference_price:.2f} | {decision.reason}"
             )
             self.log(
-                f"信号评估完成 | {decision.symbol} | {decision.signal.value.upper()} | "
+                f"淇″彿璇勪及瀹屾垚 | {decision.symbol} | {decision.signal.value.upper()} | "
                 f"{decision.reference_price:.2f} | {decision.reason}"
             )
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("信号评估失败", str(exc))
+            self._show_error("淇″彿璇勪及澶辫触", str(exc))
 
     def _evaluate_current_symbol(self, save_signal: bool) -> SignalDecision:
         self._refresh_runtime()
         self._refresh_status_labels()
         symbol = self._current_symbol()
         if self.live_engine is None:
-            raise RuntimeError("交易引擎尚未初始化")
+            raise RuntimeError("浜ゆ槗寮曟搸灏氭湭鍒濆鍖?)
         decision = self.live_engine.evaluate_symbol(symbol)
         self.last_decision = decision
 
@@ -810,7 +810,7 @@ class MainWindow(QMainWindow):
         try:
             symbol = self._current_symbol()
             if self.live_engine is None:
-                raise RuntimeError("交易引擎尚未初始化")
+                raise RuntimeError("浜ゆ槗寮曟搸灏氭湭鍒濆鍖?)
 
             decision = self.last_decision if self.last_decision and self.last_decision.symbol == symbol else None
             if decision is None:
@@ -831,27 +831,27 @@ class MainWindow(QMainWindow):
                 )
             )
             self.signal_label.setText(
-                f"最近信号: {decision.signal.value.upper()} @ {decision.reference_price:.2f} | {result.message}"
+                f"鏈€杩戜俊鍙? {decision.signal.value.upper()} @ {decision.reference_price:.2f} | {result.message}"
             )
-            self.log(f"执行结果 | {decision.symbol} | {result.message}")
+            self.log(f"鎵ц缁撴灉 | {decision.symbol} | {result.message}")
             if result.order_id:
                 self.cancel_order_edit.setText(result.order_id)
             self.sync_broker_state(source="execute_signal")
             self.refresh_records()
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("执行失败", str(exc))
+            self._show_error("鎵ц澶辫触", str(exc))
 
     def cancel_order(self) -> None:
         try:
             order_id = self.cancel_order_edit.text().strip()
             if not order_id:
-                raise RuntimeError("请先输入要撤销的订单号")
+                raise RuntimeError("璇峰厛杈撳叆瑕佹挙閿€鐨勮鍗曞彿")
             result = self.broker.cancel_order(order_id)
-            self.log(f"撤单结果 | {order_id} | {result.message}")
+            self.log(f"鎾ゅ崟缁撴灉 | {order_id} | {result.message}")
             self.sync_broker_state(source="cancel_order")
             self.refresh_records()
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("撤单失败", str(exc))
+            self._show_error("鎾ゅ崟澶辫触", str(exc))
 
     def refresh_market(self) -> None:
         try:
@@ -882,24 +882,24 @@ class MainWindow(QMainWindow):
             self.last_data_source = str(source)
             self.last_refresh_at = datetime.now().strftime("%H:%M:%S")
             self._refresh_status_labels()
-            self.log(f"刷新行情成功，共 {len(snapshot)} 条，来源 {source}")
+            self.log(f"鍒锋柊琛屾儏鎴愬姛锛屽叡 {len(snapshot)} 鏉★紝鏉ユ簮 {source}")
             self.refresh_positions()
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("刷新行情失败", str(exc))
+            self._show_error("鍒锋柊琛屾儏澶辫触", str(exc))
 
     def refresh_positions(self) -> None:
         try:
             positions = self.broker.get_positions()
             account = self.broker.get_account()
             self.account_label.setText(
-                f"账户: 现金 {account.cash:,.2f} | 市值 {account.market_value:,.2f} | 总资产 {account.equity:,.2f}"
+                f"璐︽埛: 鐜伴噾 {account.cash:,.2f} | 甯傚€?{account.market_value:,.2f} | 鎬昏祫浜?{account.equity:,.2f}"
             )
             self.position_table.setRowCount(len(positions))
             for row_idx, position in enumerate(positions):
                 self._populate_position_row(row_idx, position)
-            self.log(f"刷新持仓成功，共 {len(positions)} 条")
+            self.log(f"鍒锋柊鎸佷粨鎴愬姛锛屽叡 {len(positions)} 鏉?)
         except Exception as exc:  # pragma: no cover - UI path
-            self._show_error("刷新持仓失败", str(exc))
+            self._show_error("鍒锋柊鎸佷粨澶辫触", str(exc))
 
     def sync_broker_state(self, source: str) -> None:
         positions = self.broker.get_positions()
@@ -942,7 +942,7 @@ class MainWindow(QMainWindow):
                 if decision.symbol == symbol and decision.signal.value != "hold":
                     self.execute_signal()
         except Exception as exc:  # pragma: no cover - UI path
-            self.log(f"自动刷新异常: {exc}")
+            self.log(f"鑷姩鍒锋柊寮傚父: {exc}")
 
     def refresh_records(self) -> None:
         self._populate_frame_table(
@@ -972,7 +972,7 @@ class MainWindow(QMainWindow):
                 ("price", lambda value: f"{float(value):.2f}"),
                 ("volume", lambda value: str(int(value))),
                 ("mode", str),
-                ("accepted", lambda value: "是" if int(value) else "否"),
+                ("accepted", lambda value: "鏄? if int(value) else "鍚?),
                 ("order_id", lambda value: value or "-"),
                 ("status", lambda value: value or "-"),
                 ("trade_id", lambda value: value or "-"),
@@ -1084,7 +1084,7 @@ class MainWindow(QMainWindow):
     def _current_symbol(self) -> str:
         symbol = self.symbol_combo.currentText().strip()
         if not symbol:
-            raise RuntimeError("请先选择交易标的")
+            raise RuntimeError("璇峰厛閫夋嫨浜ゆ槗鏍囩殑")
         return symbol
 
     def log(self, message: str) -> None:
@@ -1094,3 +1094,4 @@ class MainWindow(QMainWindow):
     def _show_error(self, title: str, message: str) -> None:
         self.log(f"{title}: {message}")
         QMessageBox.critical(self, title, message)
+
