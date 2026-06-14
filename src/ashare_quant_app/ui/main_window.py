@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -56,6 +57,8 @@ class MainWindow(QMainWindow):
         self.live_engine: LiveTradingEngine | None = None
         self.last_decision: SignalDecision | None = None
         self.last_backtest_result: BacktestResult | None = None
+        self.last_data_source = "unknown"
+        self.last_refresh_at = "-"
         self.cancel_order_edit = QLineEdit()
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self._handle_auto_refresh)
@@ -161,6 +164,40 @@ class MainWindow(QMainWindow):
                 border: none;
                 background: transparent;
             }
+            QMenuBar {
+                background: #ffffff;
+                border-bottom: 1px solid #d6deea;
+                padding: 4px 6px;
+            }
+            QMenuBar::item {
+                background: transparent;
+                color: #334155;
+                padding: 6px 10px;
+                border-radius: 6px;
+            }
+            QMenuBar::item:selected {
+                background: #eef4ff;
+                color: #1d4ed8;
+            }
+            QMenu {
+                background: #ffffff;
+                border: 1px solid #d6deea;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 7px 22px;
+                border-radius: 6px;
+            }
+            QMenu::item:selected {
+                background: #eef4ff;
+                color: #1d4ed8;
+            }
+            QStatusBar {
+                background: #ffffff;
+                border-top: 1px solid #d6deea;
+                color: #475569;
+                font-size: 11px;
+            }
             """
         )
 
@@ -171,11 +208,12 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         layout.addWidget(self._build_header_panel())
-        layout.addWidget(self._build_status_panel())
         layout.addWidget(self._build_workspace(), 1)
         layout.addWidget(self._build_records_panel(), 1)
 
         self.setCentralWidget(root)
+        self._build_menu_bar()
+        self._build_bottom_status_bar()
 
     def _build_header_panel(self) -> QFrame:
         card = self._make_card("StatusCard")
@@ -191,9 +229,177 @@ class MainWindow(QMainWindow):
         title_layout.addWidget(hint)
 
         layout.addLayout(title_layout, 1)
-        layout.addWidget(self._make_status_badge("运行模式", "本地模拟 / QMT"), 0)
-        layout.addWidget(self._make_status_badge("数据链路", "实时 / 回退"), 0)
         return card
+
+    def _build_menu_bar(self) -> None:
+        menu_bar = self.menuBar()
+        menu_bar.clear()
+
+        strategy_menu = menu_bar.addMenu("策略风控配置")
+        self.strategy_panel_action = QAction("显示参数面板", self)
+        self.strategy_panel_action.setCheckable(True)
+        self.strategy_panel_action.setChecked(True)
+        self.strategy_panel_action.toggled.connect(
+            lambda checked: self._set_panel_visible(self.control_panel_container, checked)
+        )
+        strategy_menu.addAction(self.strategy_panel_action)
+
+        self.auto_refresh_action = QAction("启用自动刷新", self)
+        self.auto_refresh_action.setCheckable(True)
+        self.auto_refresh_action.setChecked(self.auto_refresh_check.isChecked())
+        self.auto_refresh_action.toggled.connect(self.auto_refresh_check.setChecked)
+        strategy_menu.addAction(self.auto_refresh_action)
+
+        load_config_action = QAction("重新加载配置", self)
+        load_config_action.triggered.connect(self.load_config)
+        strategy_menu.addAction(load_config_action)
+
+        focus_strategy_action = QAction("聚焦参数面板", self)
+        focus_strategy_action.triggered.connect(lambda: self._focus_panel(self.control_panel_container))
+        strategy_menu.addAction(focus_strategy_action)
+
+        market_menu = menu_bar.addMenu("市场监控")
+        self.market_panel_action = QAction("显示市场监控", self)
+        self.market_panel_action.setCheckable(True)
+        self.market_panel_action.setChecked(True)
+        self.market_panel_action.toggled.connect(lambda checked: self._set_panel_visible(self.market_panel_card, checked))
+        market_menu.addAction(self.market_panel_action)
+
+        refresh_market_action = QAction("刷新行情", self)
+        refresh_market_action.triggered.connect(self.refresh_market)
+        market_menu.addAction(refresh_market_action)
+
+        refresh_positions_action = QAction("刷新持仓", self)
+        refresh_positions_action.triggered.connect(self.refresh_positions)
+        market_menu.addAction(refresh_positions_action)
+
+        focus_market_action = QAction("聚焦市场监控", self)
+        focus_market_action.triggered.connect(lambda: self._focus_panel(self.market_panel_card))
+        market_menu.addAction(focus_market_action)
+
+        records_menu = menu_bar.addMenu("交易记录")
+        self.records_panel_action = QAction("显示交易记录面板", self)
+        self.records_panel_action.setCheckable(True)
+        self.records_panel_action.setChecked(True)
+        self.records_panel_action.toggled.connect(
+            lambda checked: self._set_panel_visible(self.records_panel_card, checked)
+        )
+        records_menu.addAction(self.records_panel_action)
+
+        focus_records_action = QAction("聚焦交易记录", self)
+        focus_records_action.triggered.connect(lambda: self._focus_panel(self.records_panel_card))
+        records_menu.addAction(focus_records_action)
+
+        order_records_action = QAction("切换到委托中心", self)
+        order_records_action.triggered.connect(lambda: self._open_record_tab("委托中心"))
+        records_menu.addAction(order_records_action)
+
+        trade_records_action = QAction("切换到成交记录", self)
+        trade_records_action.triggered.connect(lambda: self._open_record_tab("成交记录"))
+        records_menu.addAction(trade_records_action)
+
+        event_records_action = QAction("切换到事件日志", self)
+        event_records_action.triggered.connect(lambda: self._open_record_tab("事件日志"))
+        records_menu.addAction(event_records_action)
+
+        chart_menu = menu_bar.addMenu("图表分析")
+        self.chart_panel_action = QAction("显示图表分析", self)
+        self.chart_panel_action.setCheckable(True)
+        self.chart_panel_action.setChecked(True)
+        self.chart_panel_action.toggled.connect(lambda checked: self._set_panel_visible(self.chart_panel_card, checked))
+        chart_menu.addAction(self.chart_panel_action)
+
+        run_backtest_action = QAction("运行回测", self)
+        run_backtest_action.triggered.connect(self.run_backtest)
+        chart_menu.addAction(run_backtest_action)
+
+        evaluate_signal_action = QAction("评估当前信号", self)
+        evaluate_signal_action.triggered.connect(self.evaluate_signal)
+        chart_menu.addAction(evaluate_signal_action)
+
+        focus_chart_action = QAction("聚焦图表分析", self)
+        focus_chart_action.triggered.connect(lambda: self._focus_panel(self.chart_panel_card))
+        chart_menu.addAction(focus_chart_action)
+
+    def _build_bottom_status_bar(self) -> None:
+        status_bar = self.statusBar()
+        status_bar.setSizeGripEnabled(False)
+        self.mode_label = self._new_status_label(150)
+        self.strategy_label = self._new_status_label(260)
+        self.account_label = self._new_status_label(320)
+        self.signal_label = self._new_status_label(300)
+        self.refresh_label = self._new_status_label(170)
+        self.data_source_label = self._new_status_label(150)
+        self.storage_label = self._new_status_label(260)
+
+        for label in [
+            self.mode_label,
+            self.strategy_label,
+            self.account_label,
+            self.signal_label,
+            self.refresh_label,
+            self.data_source_label,
+            self.storage_label,
+        ]:
+            status_bar.addWidget(label)
+
+        self.mode_label.setText("模式: -")
+        self.strategy_label.setText("策略: -")
+        self.account_label.setText("账户: -")
+        self.signal_label.setText("最近信号: -")
+        self.refresh_label.setText("刷新: -")
+        self.data_source_label.setText("数据链路: -")
+        self.storage_label.setText("数据库: -")
+
+    def _new_status_label(self, minimum_width: int) -> QLabel:
+        label = QLabel()
+        label.setMinimumWidth(minimum_width)
+        label.setMargin(6)
+        label.setStyleSheet("padding: 0 6px;")
+        return label
+
+    def _sync_panel_action(self, widget: QWidget, visible: bool) -> None:
+        action_map = {
+            self.control_panel_container: self.strategy_panel_action,
+            self.chart_panel_card: self.chart_panel_action,
+            self.market_panel_card: self.market_panel_action,
+            self.records_panel_card: self.records_panel_action,
+        }
+        action = action_map.get(widget)
+        if action is not None and action.isChecked() != visible:
+            action.blockSignals(True)
+            action.setChecked(visible)
+            action.blockSignals(False)
+
+    def _set_panel_visible(self, widget: QWidget, visible: bool) -> None:
+        widget.setVisible(visible)
+        self._sync_panel_action(widget, visible)
+        if visible:
+            self._focus_panel(widget)
+
+    def _focus_panel(self, widget: QWidget) -> None:
+        self._sync_panel_action(widget, True)
+        widget.show()
+        if widget is self.control_panel_container:
+            self.control_panel_container.ensureWidgetVisible(self.control_panel_card)
+        if hasattr(self, "workspace_splitter"):
+            self.workspace_splitter.setSizes([420, 700, 480])
+        widget.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _open_record_tab(self, tab_name: str) -> None:
+        self._sync_panel_action(self.records_panel_card, True)
+        self.records_panel_card.show()
+        index = next(
+            (
+                idx
+                for idx in range(self.record_tabs.count())
+                if self.record_tabs.tabText(idx) == tab_name
+            ),
+            -1,
+        )
+        if index >= 0:
+            self.record_tabs.setCurrentIndex(index)
+        self._focus_panel(self.records_panel_card)
 
     def _build_control_panel(self) -> QFrame:
         card = self._make_card()
@@ -298,38 +504,21 @@ class MainWindow(QMainWindow):
         outer.addLayout(action_row)
         return card
 
-    def _build_status_panel(self) -> QWidget:
-        container = QWidget()
-        row = QHBoxLayout(container)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
-
-        self.mode_label = QLabel("-")
-        self.strategy_label = QLabel("-")
-        self.storage_label = QLabel("-")
-        self.account_label = QLabel("-")
-        self.signal_label = QLabel("-")
-        self.refresh_label = QLabel("手动")
-
-        row.addWidget(self._make_info_card("运行模式", self.mode_label))
-        row.addWidget(self._make_info_card("当前策略", self.strategy_label))
-        row.addWidget(self._make_info_card("账户资产", self.account_label))
-        row.addWidget(self._make_info_card("最近信号", self.signal_label))
-        row.addWidget(self._make_info_card("刷新状态", self.refresh_label))
-        row.addWidget(self._make_info_card("数据库", self.storage_label))
-        return container
-
     def _build_workspace(self) -> QWidget:
         splitter = QSplitter()
         splitter.setChildrenCollapsible(False)
+        self.workspace_splitter = splitter
 
         sidebar_scroll = QScrollArea()
         sidebar_scroll.setWidgetResizable(True)
         sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         sidebar_scroll.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        sidebar_scroll.setWidget(self._build_control_panel())
+        self.control_panel_card = self._build_control_panel()
+        sidebar_scroll.setWidget(self.control_panel_card)
+        self.control_panel_container = sidebar_scroll
 
         center_card = self._make_card()
+        self.chart_panel_card = center_card
         center_layout = QVBoxLayout(center_card)
         center_layout.setContentsMargins(16, 16, 16, 16)
         center_layout.setSpacing(10)
@@ -340,6 +529,7 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(self.equity_chart, 1)
 
         right_card = self._make_card()
+        self.market_panel_card = right_card
         right_layout = QVBoxLayout(right_card)
         right_layout.setContentsMargins(16, 16, 16, 16)
         right_layout.setSpacing(10)
@@ -359,6 +549,7 @@ class MainWindow(QMainWindow):
 
     def _build_records_panel(self) -> QFrame:
         card = self._make_card()
+        self.records_panel_card = card
         layout = QVBoxLayout(card)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
@@ -525,12 +716,19 @@ class MainWindow(QMainWindow):
             f"每次 {self.config.strategy.trade_size} 股"
         )
         self.storage_label.setText(f"数据库: {self.storage.db_path}")
-        refresh_text = (
-            f"刷新: 每 {self.config.auto_refresh.interval_seconds}s"
-            if self.config.auto_refresh.enabled
-            else "刷新: 手动"
-        )
+        refresh_mode = f"每 {self.config.auto_refresh.interval_seconds}s" if self.config.auto_refresh.enabled else "手动"
+        refresh_text = f"刷新: {refresh_mode} | 最近 {self.last_refresh_at}"
         self.refresh_label.setText(refresh_text)
+        self.data_source_label.setText(f"数据链路: {self.last_data_source}")
+        if hasattr(self, "auto_refresh_action") and self.auto_refresh_action.isChecked() != self.auto_refresh_check.isChecked():
+            self.auto_refresh_action.setChecked(self.auto_refresh_check.isChecked())
+        try:
+            account = self.broker.get_account()
+            self.account_label.setText(
+                f"账户: 现金 {account.cash:,.0f} | 总资产 {account.equity:,.0f}"
+            )
+        except Exception:
+            self.account_label.setText("账户: -")
 
     def run_backtest(self) -> None:
         try:
@@ -681,6 +879,9 @@ class MainWindow(QMainWindow):
                 ],
             )
             source = snapshot.iloc[0]["data_source"] if not snapshot.empty and "data_source" in snapshot.columns else "unknown"
+            self.last_data_source = str(source)
+            self.last_refresh_at = datetime.now().strftime("%H:%M:%S")
+            self._refresh_status_labels()
             self.log(f"刷新行情成功，共 {len(snapshot)} 条，来源 {source}")
             self.refresh_positions()
         except Exception as exc:  # pragma: no cover - UI path

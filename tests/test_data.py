@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pandas as pd
 
@@ -7,6 +7,7 @@ from ashare_quant_app.data import AkshareDataProvider
 
 def test_realtime_snapshot_falls_back_to_history(monkeypatch) -> None:
     provider = AkshareDataProvider()
+    monkeypatch.setattr(provider, "_try_easyquotation_snapshot", lambda symbols: pd.DataFrame())
 
     def raise_realtime_error():
         raise ConnectionError("remote disconnected")
@@ -32,6 +33,7 @@ def test_realtime_snapshot_falls_back_to_history(monkeypatch) -> None:
 
 def test_realtime_snapshot_falls_back_to_offline_when_all_remote_sources_fail(monkeypatch) -> None:
     provider = AkshareDataProvider()
+    monkeypatch.setattr(provider, "_try_easyquotation_snapshot", lambda symbols: pd.DataFrame())
 
     def raise_realtime_error():
         raise ConnectionError("remote disconnected")
